@@ -26,6 +26,7 @@ void setup()
     while (!Serial)
         ;
 
+    neuEEPROM.autoFormatting(true); // Enable auto format if mount fails
     // Init EEPROM 512 bytes
     if (!neuEEPROM.begin(512))
     {
