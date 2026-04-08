@@ -1,9 +1,9 @@
 #include "NeuEEPROM.h"
 
-// [Constructor] Inisialisasi awal variabel agar tidak "liar" di memori
+// [Constructor] Initialize variables to prevent them from running wild in memory
 NeuEEPROM::NeuEEPROM() : _buffer(nullptr), _size(0), _path(nullptr), _dirty(false) {}
 
-// [Destructor] Pastikan Shadow RAM dibersihkan saat objek hancur (Anti-Leak)
+// [Destructor] Ensure Shadow RAM is cleared when an object is destroyed (Anti-Leak)
 NeuEEPROM::~NeuEEPROM()
 {
     if (_buffer)
@@ -11,9 +11,9 @@ NeuEEPROM::~NeuEEPROM()
 }
 
 /**
- * [_calculateChecksum] Logika XOR per byte untuk integritas data.
- * @return 1-byte checksum hasil akumulasi seluruh buffer.
- */
+* [_calculateChecksum] Byte-by-byte XOR logic for data integrity.
+* @return 1-byte checksum of all buffers.
+*/
 uint8_t NeuEEPROM::_calculateChecksum(uint8_t *data, size_t len)
 {
     uint8_t crc = 0x00;
@@ -25,7 +25,7 @@ uint8_t NeuEEPROM::_calculateChecksum(uint8_t *data, size_t len)
         for (uint8_t b = 0; b < 8; b++)
         {
             if (crc & 0x80)
-                crc = (crc << 1) ^ 0x07; // polynomial CRC-8
+                crc = (crc << 1) ^ 0x07;
             else
                 crc <<= 1;
         }
@@ -34,16 +34,16 @@ uint8_t NeuEEPROM::_calculateChecksum(uint8_t *data, size_t len)
     return crc;
 }
 
-/**
- * [begin] Setup awal: Alokasi RAM, Mount FS, & Validasi data lama.
- * @return bool: True jika RAM siap & FS berhasil dimount.
- */
+/** 
+* [begin] Initial setup: RAM allocation, Mount FS, & Validation of old data. 
+* @return bool: True if RAM is ready & FS mounted successfully. 
+*/
 bool NeuEEPROM::begin(size_t size, const char *path)
 {
     _size = size;
     _path = path;
 
-    // 1. Managemen RAM: Cegah kebocoran memori
+    // 1. RAM Management: Prevent memory leaks
     if (_buffer)
         free(_buffer);
     _buffer = (uint8_t *)malloc(_size);
@@ -71,7 +71,7 @@ bool NeuEEPROM::begin(size_t size, const char *path)
         return false;
 #endif
 
-    // 3. CLEANUP: Hapus file sampah jika ada
+    // 3. CLEANUP: Remove junk files if any
     const char *tempPath = "/neu_eeprom.tmp";
     if (LittleFS.exists(tempPath))
     {
@@ -79,20 +79,20 @@ bool NeuEEPROM::begin(size_t size, const char *path)
         Serial.println("[NeuEEPROM] Cleanup: Temporary file deleted.");
     }
 
-    // 4. LOAD DATA: Ambil data asli dari Flash
+    // 4. LOAD DATA: Retrieve original data from Flash
     if (LittleFS.exists(_path))
     {
         File f = LittleFS.open(_path, "r");
         if (f)
         {
-            // Validasi ukuran: Data + 1 byte Checksum
+            // Validation size: Data + 1 byte Checksum
             if (f.size() == _size + 1)
             {
                 f.read(_buffer, _size);
                 uint8_t savedCrc = f.read();
                 f.close();
 
-                // Cek Integritas dengan Checksum
+                // Check Integrity with Checksum
                 if (savedCrc == _calculateChecksum(_buffer, _size))
                 {
                     Serial.println("[NeuEEPROM] Integrity OK. Data Loaded.");
@@ -107,7 +107,7 @@ bool NeuEEPROM::begin(size_t size, const char *path)
                 f.close();
             }
 
-            // Jika data korup atau ukuran salah, lakukan reset (Wipe)
+            // If data is corrupt or the size is incorrect, perform a reset (Wipe)
             wipe();
         }
     }
@@ -118,9 +118,9 @@ bool NeuEEPROM::begin(size_t size, const char *path)
 }
 
 /**
- * [registerSlot] Daftarkan slot untuk penyimpanan data.
- * @return bool: True jika slot berhasil didaftarkan.
- */
+* [registerSlot] Register a slot for data storage.
+* @return bool: True if the slot was registered successfully. 
+*/
 bool NeuEEPROM::registerSlot(uint8_t id, size_t size)
 {
     if (size == 0)
@@ -142,13 +142,13 @@ bool NeuEEPROM::registerSlot(uint8_t id, size_t size)
     return true;
 }
 
-/**
- * [commit] ATOMIC SWAP: Tulis file temp dulu baru rename ke asli (Safe Write).
- * @return bool: True jika commit berhasil.
- */
+/** 
+* [commit] ATOMIC SWAP: Write the temp file first then rename it to original (Safe Write). 
+* @return bool: True if the commit was successful.
+*/
 bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
 {
-    // 1. CEK REDUNDANSI: Jika data sama dengan di Flash, jangan nyiksa hardware
+    // 1. CHECK REDUNDANCE: If the data is the same as in Flash, don't torture the hardware
     if (!_dirty)
     {
         _sameDataCount++;
@@ -158,17 +158,17 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
             Serial.println(F("[NeuEEPROM] LOCKDOWN: Persistent commit calls with NO changes!"));
             return false;
         }
-        return true; // Abaikan diam-diam
+        return true; // Silently ignore
     }
 
-    // 2. CEK STATUS LOCK: Jika sudah terblokir sebelumnya
+    // 2. CHECK LOCK STATUS: If it was previously locked
     if (_isLocked)
     {
         Serial.println(F("[NeuEEPROM] CRITICAL: System is Locked! Fix your logic and Reboot."));
         return false;
     }
 
-    // 3. LOGIKA RATE LIMITER: Mencegah spam penulisan cepat
+    // 3. RATE LIMITER LOGIC: Prevents fast write spam
     uint32_t now = millis();
     if (now - _lastCheckTime < maxIntervalMs)
     {
@@ -182,12 +182,12 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
     }
     else
     {
-        // Reset jatah tulis setiap jendela waktu berakhir
+        // Reset the write after each time window expires
         _writeCount = 1;
         _lastCheckTime = now;
     }
 
-    // 4. ATOMIC SWAP: Proses tulis ke file sementara
+    // 4. ATOMIC SWAP: Processes writes to a temporary file
     const char *tempPath = "/neu_eeprom.tmp";
     File f = LittleFS.open(tempPath, "w");
     if (!f)
@@ -200,20 +200,20 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
     f.write(_calculateChecksum(_buffer, _size));
     f.close();
 
-    // 5. SWAP FILE: Hapus yang lama, ganti dengan yang baru
+    // 5. SWAP FILE: Remove the old one and replace it with the new one
     if (LittleFS.exists(_path))
         LittleFS.remove(_path);
 
     if (LittleFS.rename(tempPath, _path))
     {
-        // RESET SEMUA FLAG SETELAH SUKSES
-        _dirty = false;       // Reset flag dirty
-        _dirtyTimer = 0;      // Reset timer
-        _sameDataCount = 0;   // Reset jatah redundant
-        _writeCount = 0;      // Reset jatah tulis
-        _lastCheckTime = now; // Update waktu sukses terakhir
+        // RESET ALL FLAGS AFTER SUCCESS
+        _dirty = false;       // Reset the dirty flag
+        _dirtyTimer = 0;      // Reset the timer
+        _sameDataCount = 0;   // Reset the redundant
+        _writeCount = 0;      // Reset the write
+        _lastCheckTime = now; // Update the last successful time
 
-        LittleFS.remove(tempPath); // Pastikan file temp bersih
+        LittleFS.remove(tempPath); // Ensure the temp file is clean
         Serial.println(F("[NeuEEPROM] Safe Commit Success. RAM & Flash Synced."));
         return true;
     }
@@ -223,23 +223,23 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
 }
 
 /**
- * [wipe] Reset Shadow RAM ke 0xFF & hapus file fisik di Flash.
- * @return bool: True jika "reset" berhasil tanpa sisa.
- */
+* [wipe] Reset Shadow RAM to 0xFF & erase the physical files in Flash.
+* @return bool: True if the reset was successful with no residue.
+*/
 bool NeuEEPROM::wipe()
 {
     if (_buffer)
         memset(_buffer, 0xFF, _size);
-    _dirty = true; // Tandai agar commit selanjutnya menulis data bersih
+    _dirty = true; // Mark for the next commit to write clean data
     if (LittleFS.exists(_path))
         return LittleFS.remove(_path);
     return true;
 }
 
 /**
- * [hexDump] Tampilan "Hacker Mode" untuk intip isi Shadow RAM.
- * Pro-tip: Baris kiri = Offset, Tengah = Hex, Kanan = ASCII.
- */
+* [hexDump] "Hacker Mode" view to peek inside Shadow RAM.
+* Pro-tip: Left line = Offset, Middle = Hex, Right = ASCII.
+*/
 void NeuEEPROM::hexDump(size_t bytesPerLine)
 {
     if (!_buffer)
@@ -268,7 +268,7 @@ void NeuEEPROM::hexDump(size_t bytesPerLine)
             if (i + j < _size)
             {
                 char c = _buffer[i + j];
-                // Hanya tampilkan karakter yang bisa dibaca (Printable ASCII)
+                // Only display readable characters (Printable ASCII)
                 Serial.print((c >= 32 && c <= 126) ? c : '.');
             }
         }
@@ -277,8 +277,8 @@ void NeuEEPROM::hexDump(size_t bytesPerLine)
 }
 
 /**
- * [debugSlots] Print informasi slot yang terdaftar (untuk debugging).
- */
+* [debugSlots] Print registered slot information (for debugging).
+*/
 void NeuEEPROM::debugSlots()
 {
     Serial.println("=== SLOT MAP ===");
@@ -292,10 +292,10 @@ void NeuEEPROM::debugSlots()
     }
 }
 
-/**
- * [verify] Membandingkan isi Shadow RAM vs File fisik di Flash (Byte by Byte).
- * @return bool: True jika RAM dan Flash sinkron 100% (Termasuk Checksum).
- */
+/** 
+* [verify] Compares the contents of Shadow RAM vs Physical Files in Flash (Byte by Byte). 
+* @return bool: True if RAM and Flash are 100% in sync (Including Checksum). 
+*/
 bool NeuEEPROM::verify()
 {
     if (!_buffer || !LittleFS.exists(_path))
@@ -305,14 +305,14 @@ bool NeuEEPROM::verify()
     if (!f)
         return false;
 
-    // 1. Cek ukuran file dulu (Data + 1 byte Checksum)
+    // 1. Check the file size first (Data + 1 byte Checksum)
     if (f.size() != _size + 1)
     {
         f.close();
         return false;
     }
 
-    // 2. Baca data dari Flash dan bandingkan langsung dengan RAM
+    // 2. Read data from Flash and compare it directly to RAM
     bool match = true;
     for (size_t i = 0; i < _size; i++)
     {
@@ -323,7 +323,7 @@ bool NeuEEPROM::verify()
         }
     }
 
-    // 3. Cek apakah Checksum-nya juga masih valid
+    // 3. Check if the Checksum is still valid
     if (match)
     {
         uint8_t savedCrc = f.read();
@@ -342,28 +342,28 @@ bool NeuEEPROM::verify()
 }
 
 /**
- * [update] Engine utama untuk mengelola commit otomatis dan rate limiting.
- */
+* [update] The main engine for managing auto-commit and rate limiting.
+*/
 void NeuEEPROM::update()
 {
     if (!_dirty || _autoCommitMs == 0 || _isLocked)
         return;
 
-    // Jika baru saja jadi dirty, catat waktunya
+    // If it has just become dirty, record the time.
     if (_dirtyTimer == 0)
     {
         _dirtyTimer = millis();
         return;
     }
 
-    // Jika sudah "mengendap" selama autoCommitMs, maka eksekusi!
+    // If it has "settled" for autoCommitMs, then execute!
     if (millis() - _dirtyTimer >= _autoCommitMs)
     {
         Serial.println(F("[NeuEEPROM] Engine: Auto-committing changes..."));
         if (commit())
-            _dirtyTimer = 0; // Reset timer setelah sukses
+            _dirtyTimer = 0; // Reset timer after success
     }
 }
 
-// Instance Singleton (Siap dipanggil di mana saja)
+// Instance Singleton
 NeuEEPROM neuEEPROM;
