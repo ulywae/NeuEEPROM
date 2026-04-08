@@ -1,0 +1,4 @@
+NeuEEPROM	KEYWORD1
+registerSlot	KEYWORD2
+commit	KEYWORD2
+verify	KEYWORD2
