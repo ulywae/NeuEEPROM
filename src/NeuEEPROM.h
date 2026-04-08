@@ -8,11 +8,11 @@
 class NeuEEPROM
 {
 private:
-    uint8_t *_buffer = nullptr;  // Shadow RAM untuk menyimpan data sementara sebelum commit
-    size_t _size = 0;            // Ukuran Shadow RAM
-    const char *_path = nullptr; // Path file di LittleFS untuk menyimpan data EEPROM
-    bool _dirty = false;         // Flag untuk menandai apakah ada perubahan yang belum di-commit ke Flash
-    bool _autoFormat = false;    // Aktifkan format otomatis jika mount gagal
+    uint8_t *_buffer = nullptr;  // Shadow RAM to store temporary data before commit
+    size_t _size = 0;            // Shadow RAM size
+    const char *_path = nullptr; // File path in LittleFS to store EEPROM data
+    bool _dirty = false;         // Flag to indicate whether there are uncommitted changes to Flash
+    bool _autoFormat = false;    // Enable auto-format if mount fails
 
     // Slot system
     struct Slot
@@ -21,17 +21,17 @@ private:
         uint16_t size;
     };
 
-    Slot _slots[256];              // Daftar Slot
-    bool _slotUsed[256] = {false}; // Daftar Slot yang digunakan
-    uint16_t _nextOffset = 0;      // Offset untuk slot selanjutnya
+    Slot _slots[256];              // List of Slots
+    bool _slotUsed[256] = {false}; // List of used Slots
+    uint16_t _nextOffset = 0;      // Offset for the next slot
 
     // Security Guard Variables
-    uint32_t _lastCheckTime = 0; // Waktu terakhir commit atau verifikasi berhasil
-    uint8_t _writeCount = 0;     // Menghitung berapa kali commit
-    bool _isLocked = false;      // True jika terblokir
-    uint8_t _sameDataCount = 0;  // Menghitung berapa kali commit data yang sama
-    uint32_t _dirtyTimer = 0;    // Waktu terakhir data dirty
-    uint32_t _autoCommitMs = 0;  // 0 berarti fitur mati
+    uint32_t _lastCheckTime = 0; // Last time a commit or verification was successful
+    uint8_t _writeCount = 0;     // Counts the number of times a commit was made
+    bool _isLocked = false;      // True if blocked
+    uint8_t _sameDataCount = 0;  // Counts the number of times the same data was committed
+    uint32_t _dirtyTimer = 0;    // Last time the data was dirty
+    uint32_t _autoCommitMs = 0;  // 0 means the feature is disabled
 
     uint8_t _calculateChecksum(uint8_t *data, size_t len);
 
@@ -39,14 +39,14 @@ public:
     NeuEEPROM();
     ~NeuEEPROM();
 
-    bool begin(size_t size = 512, const char *path = "/neu_eeprom.bin"); // Inisialisasi NeuEEPROM
-    void autoFormatting(bool enable) { _autoFormat = enable; }           // Aktifkan format otomatis jika mount gagal
-    bool registerSlot(uint8_t id, size_t size);                          // Daftarkan slot dengan ID unik dan ukuran tertentu (Opsional, untuk manajemen internal)
+    bool begin(size_t size = 512, const char *path = "/neu_eeprom.bin"); // Initialize NeuEEPROM
+    void autoFormatting(bool enable) { _autoFormat = enable; }           // Enable autoformat if mount fails
+    bool registerSlot(uint8_t id, size_t size);                          // Register a slot with a unique ID and a specific size (Optional, for internal management)
 
     template <typename T>
-    void put(uint8_t id, const T &data) // Menyimpan data ke Shadow RAM, tandai dirty jika ada perubahan
+    void put(uint8_t id, const T &data) // Save data to Shadow RAM, mark dirty if changes occur
     {
-        // Cek: Apakah tipe data ini aman untuk di-copy mentah (Plain Old Data)?
+        // Check: Is this data type safe to copy raw (Plain Old Data)?
         static_assert(std::is_trivially_copyable<T>::value, "Tipe data terlalu kompleks untuk EEPROM!");
 
         if (!_slotUsed[id])
@@ -64,9 +64,9 @@ public:
     }
 
     template <typename T>
-    bool get(uint8_t id, T &data) // Membaca data dari Shadow RAM
+    bool get(uint8_t id, T &data) // Read data from Shadow RAM
     {
-        // Cek: Pastikan tipe data tujuan juga kompatibel
+        // Check: Make sure the destination data type is also compatible
         static_assert(std::is_trivially_copyable<T>::value, "ERROR: Tipe data tujuan tidak kompatibel!");
 
         if (!_slotUsed[id])
@@ -80,18 +80,18 @@ public:
         return true;
     }
 
-    bool commit(uint32_t maxIntervalMs = 100, uint8_t maxWrites = 10); // Tulis data ke Flash dengan mekanisme keamanan
-    bool wipe();                                                       // Reset Shadow RAM dan hapus file di Flash
-    bool verify();                                                     // Cek integritas antara RAM vs Flash
-    bool isDirty() const { return _dirty; }                            // Cek apakah ada perubahan
-    bool isLocked() const { return _isLocked; }                        // Cek apakah commit terkunci karena rate limit
+    bool commit(uint32_t maxIntervalMs = 100, uint8_t maxWrites = 10); // Write data to Flash with a security mechanism
+    bool wipe();                                                       // Reset Shadow RAM and erase files in Flash
+    bool verify();                                                     // Check integrity between RAM and Flash
+    bool isDirty() const { return _dirty; }                            // Check if there are any changes
+    bool isLocked() const { return _isLocked; }                        // Check if commit is locked due to rate limit
 
-    // Set berapa lama nunggu sejak data dirty sampai commit otomatis
-    void setAutoCommit(uint32_t ms) { _autoCommitMs = ms; } // Jika ms = 0, fitur auto-commit dimatikan
-    void update();                                          // Fungsi engine untuk mengelola auto-commit dan rate limiting
+    // Set how long to wait from dirty data until auto-commit
+    void setAutoCommit(uint32_t ms) { _autoCommitMs = ms; } // If ms = 0, auto-commit is disabled
+    void update();                                          // Engine function to manage auto-commit and rate limiting
 
     void hexDump(size_t bytesPerLine = 16); // print "Hex Mode"
-    void debugSlots();                      // Print informasi slot yang terdaftar (untuk debugging)
+    void debugSlots();                      // Print registered slot information (for debugging)
 };
 
 extern NeuEEPROM neuEEPROM;
