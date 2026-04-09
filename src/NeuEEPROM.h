@@ -94,6 +94,9 @@ public:
     void debugSlots();                      // Print registered slot information (for debugging)
 };
 
+
+#if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_EEPROM)
 extern NeuEEPROM neuEEPROM;
+#endif
 
 #endif
