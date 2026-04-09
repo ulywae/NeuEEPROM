@@ -12,7 +12,7 @@ private:
     size_t _size = 0;            // Shadow RAM size
     const char *_path = nullptr; // File path in LittleFS to store EEPROM data
     bool _dirty = false;         // Flag to indicate whether there are uncommitted changes to Flash
-    bool _autoFormat = false;    // Enable auto-format if mount fails
+    bool _autoFormat = true;     // Enable auto-format if mount fails
 
     // Slot system
     struct Slot
