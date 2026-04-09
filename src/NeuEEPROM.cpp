@@ -365,5 +365,6 @@ void NeuEEPROM::update()
     }
 }
 
-// Instance Singleton
+#if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_EEPROM)
 NeuEEPROM neuEEPROM;
+#endif
