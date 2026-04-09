@@ -47,7 +47,7 @@ public:
     void put(uint8_t id, const T &data) // Save data to Shadow RAM, mark dirty if changes occur
     {
         // Check: Is this data type safe to copy raw (Plain Old Data)?
-        static_assert(std::is_trivially_copyable<T>::value, "Tipe data terlalu kompleks untuk EEPROM!");
+        static_assert(std::is_trivially_copyable<T>::value, "The data type is too complex for the EEPROM!");
 
         if (!_slotUsed[id])
             return;
@@ -67,7 +67,7 @@ public:
     bool get(uint8_t id, T &data) // Read data from Shadow RAM
     {
         // Check: Make sure the destination data type is also compatible
-        static_assert(std::is_trivially_copyable<T>::value, "ERROR: Tipe data tujuan tidak kompatibel!");
+        static_assert(std::is_trivially_copyable<T>::value, "ERROR: The target data type is incompatible!");
 
         if (!_slotUsed[id])
             return false;
