@@ -95,7 +95,7 @@ neuEEPROM.wipe();
 
 ---
 
-## 🛠 Debug Tools
+## Debug Tools
 
 ```cpp
 neuEEPROM.hexDump();
@@ -125,17 +125,17 @@ Each slot is:
 
 Traditional EEPROM usage can lead to:
 
-- ❌ Incorrect offset calculations
-- ❌ Frequent flash writes (wear)
-- ❌ Data corruption on power loss
-- ❌ Hard-to-debug issues
+- Incorrect offset calculations
+- Frequent flash writes (wear)
+- Data corruption on power loss
+- Hard-to-debug issues
 
 NeuEEPROM solves these with:
 
-- ✔ Structured storage
-- ✔ Write protection & rate limiting
-- ✔ Atomic commit system
-- ✔ Built-in integrity checks
+- Structured storage
+- Write protection & rate limiting
+- Atomic commit system
+- Built-in integrity checks
 
 ---
 
