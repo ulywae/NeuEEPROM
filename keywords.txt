@@ -1,4 +1,22 @@
+#######################################
+# Syntax Coloring Map For NeuEEPROM
+#######################################
+
+# Class (Color 1)
 NeuEEPROM	KEYWORD1
+
+# Methods (Color 2)
+begin	KEYWORD2
+autoformatting	KEYWORD2
 registerSlot	KEYWORD2
+put	KEYWORD2
+get	KEYWORD2
 commit	KEYWORD2
 verify	KEYWORD2
+wipe	KEYWORD2
+update	KEYWORD2
+setAutoCommit	KEYWORD2
+isDirty	KEYWORD2
+isLocked	KEYWORD2
+hexDump	KEYWORD2
+debugSlots	KEYWORD2
