@@ -1,3 +1,29 @@
+/**
+ * ---------------------------------------------------------------------------------
+ *  NeuEEPROM - High Performance Virtual EEPROM for ESP32/ESP8266
+ * ---------------------------------------------------------------------------------
+ *  Description:
+ *  A lightweight, RAM-cached virtual EEPROM library built on top of LittleFS.
+ *  Designed for speed, flash longevity, and data integrity.
+ *
+ *  Key Features:
+ *  - Shadow RAM: Ultra-fast O(1) access (No Flash read on get/put).
+ *  - Atomic Swap: Power-failure resilient writes using .tmp swap logic.
+ *  - Flash Protection: Built-in rate limiter and anti-spam protection.
+ *  - ID-Based: Memory-efficient storage using uint8_t IDs instead of string keys.
+ *  - Integrity: Byte-by-byte XOR checksum for data validation.
+ *
+ *  Author: [Neufa/ulywae]
+ *  Version: 1.2.0
+ *  License: MIT
+ *  Repository: https://github.com/ulywae/NeuEEPROM
+ * ---------------------------------------------------------------------------------
+ *  NOTE: This library is designed to be "Disciplined". 
+ *  If you trigger the Flash Spam Protection, a hardware restart is required.
+ * ---------------------------------------------------------------------------------
+ */
+
+
 #ifndef NEU_EEPROM_H
 #define NEU_EEPROM_H
 
