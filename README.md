@@ -43,7 +43,6 @@ neuEEPROM.autoFormatting(true);
 // Initialize the library with a 512-byte Shadow RAM buffer.
 // This will mount the FS, cleanup junk, and load existing data from Flash.
 neuEEPROM.begin(512);
-
 ```
 
 ---
