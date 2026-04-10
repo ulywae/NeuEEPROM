@@ -66,13 +66,19 @@ bool NeuEEPROM::begin(size_t size, const char *path)
     // 2. Mount Filesystem (Cross-Platform ESP32/ESP8266)
 #if defined(ESP32)
     if (!LittleFS.begin(_autoFormat))
+    {
+        _reportError(ERR_FS_MOUNT); // Filesystem mount failed
         return false;
+    }
 #elif defined(ESP8266)
     if (!LittleFS.begin() && _autoFormat)
     {
         LittleFS.format();
         if (!LittleFS.begin())
+        {
+            _reportError(ERR_FS_MOUNT); // Filesystem mount failed
             return false;
+        }
     }
 #endif
 
@@ -99,6 +105,8 @@ bool NeuEEPROM::begin(size_t size, const char *path)
                 _dirty = false;
                 return true;
             }
+
+            _reportError(ERR_CRC_FAIL);
         }
 
         if (f)
@@ -121,11 +129,17 @@ bool NeuEEPROM::registerSlot(uint8_t id, size_t size)
 
     uint16_t aligned = (size + 3) & ~3;
     if (_nextOffset + aligned > _size)
+    {
+        _reportError(ERR_BUFFER_OVERFLOW, id); // Buffer overflow
         return false;
+    }
 
     SlotNode *newNode = (SlotNode *)malloc(sizeof(SlotNode));
     if (!newNode)
+    {
+        _reportError(ERR_MALLOC_FAIL, id); // Memory allocation failed
         return false;
+    }
 
     newNode->id = id;
     newNode->offset = _nextOffset;
@@ -147,13 +161,19 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
     if (!_dirty)
     {
         if (++_sameDataCount >= 5)
+        {
             _isLocked = true;
+            _reportError(ERR_FLASH_LOCKED);
+        }
         return true;
     }
 
     // 2. CHECK LOCK STATUS: If it was previously locked
     if (_isLocked)
+    {
+        _reportError(ERR_FLASH_LOCKED);
         return false;
+    }
 
     // 3. RATE LIMITER LOGIC: Prevents fast write spam
     uint32_t now = millis();
@@ -162,6 +182,7 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
         if (++_writeCount > maxWrites)
         {
             _isLocked = true;
+            _reportError(ERR_FLASH_SPAM);
             return false;
         }
     }
@@ -178,7 +199,10 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
 
     File f = LittleFS.open(tempPath, "w");
     if (!f)
+    {
+        _reportError(ERR_ATOMIC_SWAP);
         return false;
+    }
 
     f.write(_buffer, _size);
     f.write(_calculateChecksum(_buffer, _size));
@@ -192,44 +216,58 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
         _dirtyTimer = 0;           // Reset timer for auto-commit
         _sameDataCount = 0;        // Reset redundant write counter
         _lastCheckTime = millis(); // Update the last successful time
-
-        LittleFS.remove(tempPath); // Remove temp file
         return true;
     }
+
+    _reportError(ERR_ATOMIC_SWAP);
     return false;
 }
 
 /**
- * [verify] Compares the contents of Shadow RAM vs Physical Files in Flash (Byte by Byte).
+ * [verify] Compares the contents of Shadow RAM vs Physical Files in Flash.
  * @return bool: True if RAM and Flash are 100% in sync (Including Checksum).
  */
 bool NeuEEPROM::verify()
 {
     if (!_buffer || !LittleFS.exists(_path))
-        return false;
+        return false; // File not found
+
     File f = LittleFS.open(_path, "r");
+
+    // Check file validity
     if (!f || f.size() != _size + 1)
     {
         if (f)
             f.close();
+
+        _reportError(ERR_CRC_FAIL); // File size mismatch, corrupted indicates
         return false;
     }
 
+    // Compare data RAM vs Flash
     uint8_t temp[64];
     size_t bytesRead = 0;
+
     while (bytesRead < _size)
     {
         size_t toRead = std::min((size_t)sizeof(temp), _size - bytesRead);
         f.read(temp, toRead);
+
         if (memcmp(temp, _buffer + bytesRead, toRead) != 0)
         {
             f.close();
-            return false;
+            return false; // Data mismatch? RAM and Flash are not in sync
         }
+
         bytesRead += toRead;
     }
+
     bool ok = (f.read() == _calculateChecksum(_buffer, _size));
     f.close();
+
+    if (!ok) // Checksum in Flash mismatch
+        _reportError(ERR_CRC_FAIL);
+
     return ok;
 }
 
@@ -241,9 +279,12 @@ bool NeuEEPROM::wipe()
 {
     if (_buffer)
         memset(_buffer, 0xFF, _size);
+
     _dirty = true; // Mark for the next commit to write clean data
+
     if (LittleFS.exists(_path))
         return LittleFS.remove(_path);
+
     return true;
 }
 

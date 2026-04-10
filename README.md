@@ -14,6 +14,7 @@ NeuEEPROM is designed to make persistent storage simple to use, while handling s
 - Auto commit engine (non-blocking)
 - Anti write-spam protection
 - Dirty state tracking
+- Event-Driven Error System
 - XOR Integrity Check
 - Data verification support
 - Easy wipe/reset system
@@ -131,7 +132,44 @@ neuEEPROM.wipe();
 
 ---
 
-## 🛠 Debug Tools
+## New "Event-Driven" Error System:
+
+- **Added Error Callbacks**: You can now register a callback function using `onError()`. The library will "report" to your main code whenever something goes wrong.
+- **Detailed Error Codes (Enum)**:
+  - `ERR_NOT_REGISTERED`: Attempted to put/get data to a non-existent slot.
+  - `ERR_SIZE_MISMATCH`: Data type size doesn't match the registered slot.
+  - `ERR_BUFFER_OVERFLOW`: Allocated Shadow RAM is full.
+  - `ERR_MALLOC_FAIL`: System Heap memory is exhausted (Critical).
+  - `ERR_FLASH_LOCKED`: Operations blocked due to persistent redundant writes.
+  - `ERR_FLASH_SPAM`: Hardware protection triggered due to write spamming.
+  - `ERR_CRC_FAIL`: Data integrity check failed during load or verify.
+  - `ERR_ATOMIC_SWAP`: File system failure during safe-write process.
+
+### Improvements & Optimizations:
+
+- **Integrity Check**: Enhanced `verify()` and `begin()` logic to ensure 100% data consistency.
+- **Defensive Programming**: Added extra cleanup layers for temporary files to prevent junk accumulation.
+- **Improved 4-Byte Alignment**: Stricter memory padding for better stability on ESP32/ESP8266.
+- **Zero-String Footprint**: All diagnostic codes are handled via Enums, keeping the library lightweight and RAM-efficient.
+
+### Example Usage:
+
+```cpp
+void myErrorHandler(uint8_t code, uint8_t id) {
+    if (code == neuEEPROM.ERR_FLASH_SPAM) {
+        // Trigger alarm or LED if someone is spamming the flash!
+    }
+}
+
+void setup() {
+    neuEEPROM.onError(myErrorHandler);
+    neuEEPROM.begin(512);
+}
+```
+
+---
+
+## Debug Tools
 
 ```cpp
 // Print a professional Hexadecimal view of the entire Shadow RAM.
