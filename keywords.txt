@@ -25,3 +25,5 @@ getLibraryHeapUsage	KEYWORD2
 getSystemFreeHeap	KEYWORD2
 getMaxBlock8266	KEYWORD2
 setEncryption	KEYWORD2
+exportData	KEYWORD2
+importData	KEYWORD2

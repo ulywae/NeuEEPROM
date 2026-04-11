@@ -456,6 +456,94 @@ float NeuEEPROM::getHealth()
     return (health < 0) ? 0.0f : health;
 }
 
+/**
+ * [exportData] Exports the entire binary file to a Stream (Serial, File, WiFiClient).
+ * This includes Data + Odometer + CRC.
+ */
+void NeuEEPROM::exportData(Stream &dest)
+{
+    if (!LittleFS.exists(_path))
+        return;
+
+    File f = LittleFS.open(_path, "r");
+    if (!f)
+        return;
+
+    uint8_t buffer[64]; // Use a small buffer to save RAM
+
+    while (f.available())
+    {
+        size_t n = f.read(buffer, sizeof(buffer));
+        dest.write(buffer, n);
+    }
+
+    f.close();
+}
+
+/**
+ * [importData] Receives binary data from a Stream and restores it to Flash.
+ * Re-initializes the library after a successful import.
+ * Always ensure the same encryption key is set on the destination device before calling importData,
+ * otherwise the data will fail the CRC check and be wiped for safety.
+ *
+ * @param src The source Stream (e.g., Serial or WiFiClient)
+ * @param timeoutMs Maximum time to wait for data (default 5000ms)
+ */
+bool NeuEEPROM::importData(Stream &src, uint32_t timeoutMs)
+{
+    size_t expectedLen = _size + 4 + 1; // Size standar NeuEEPROM v1.3+
+
+    // Use temporary files for security
+    char tempPath[64];
+    snprintf(tempPath, sizeof(tempPath), "%s.imp", _path);
+
+    File f = LittleFS.open(tempPath, "w");
+    if (!f)
+    {
+        _reportError(ERR_ATOMIC_SWAP);
+        return false;
+    }
+
+    size_t totalReceived = 0;
+    uint32_t startWait = millis();
+
+    // Data receiving loop with Timeout
+    while (totalReceived < expectedLen)
+    {
+        if (src.available())
+        {
+            f.write(src.read());
+            totalReceived++;
+            startWait = millis(); // Reset timeout every time data is entered
+        }
+        else
+        {
+            if (millis() - startWait > timeoutMs)
+            {
+                f.close();
+                LittleFS.remove(tempPath);
+                return false; // Failed due to data disconnection
+            }
+            delay(1); // Give breath to the system
+        }
+    }
+    f.close();
+
+    // Validate newly entered files
+    if (totalReceived == expectedLen)
+    {
+        LittleFS.remove(_path);
+        if (LittleFS.rename(tempPath, _path))
+        {
+            // Load new data into Shadow RAM
+            return begin(_size, _path);
+        }
+    }
+
+    LittleFS.remove(tempPath);
+    return false;
+}
+
 #if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_EEPROM)
 NeuEEPROM neuEEPROM;
 #endif

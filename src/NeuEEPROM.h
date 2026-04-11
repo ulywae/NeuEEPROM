@@ -168,6 +168,9 @@ public:
     }
     bool masterClear();
 
+    void exportData(Stream &dest);
+    bool importData(Stream &src, uint32_t timeoutMs = 5000);
+
 private:
     struct SlotNode
     {
