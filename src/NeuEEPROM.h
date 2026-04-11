@@ -149,7 +149,7 @@ public:
     /**
      * [getMaxBlock8266] ESP8266 specific to check RAM fragmentation.
      */
-    uint32_t NeuEEPROM::getMaxBlock8266() const
+    uint32_t getMaxBlock8266() const
     {
         return ESP.getMaxFreeBlockSize();
     }
