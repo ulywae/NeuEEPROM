@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <type_traits>
-#include "NeuCipher.h"
 
 class NeuEEPROM
 {
@@ -31,12 +30,22 @@ public:
     typedef void (*ErrorCallback)(uint8_t errorCode, uint8_t id);
     void onError(ErrorCallback cb) { _errorCallback = cb; }
 
+    /**
+     * @description Enable/Disable autoformatting
+     * Enable autoformat if mount fails, set before begin if used
+     * @param enable
+     */
+    void autoFormatting(bool enable) { _autoFormat = enable; }
     bool begin(size_t size = 512, const char *path = "/neu_eeprom.bin"); // Initialize NeuEEPROM
-    void autoFormatting(bool enable) { _autoFormat = enable; }           // Enable autoformat if mount fails, set before begin
     bool registerSlot(uint8_t id, size_t size);                          // Register a slot with a unique ID and a specific size (Optional, for internal management)
 
+    /**
+     * @description Save data to Shadow RAM, mark dirty if changes occur
+     * @param id Slot ID
+     * @param data Data
+     */
     template <typename T>
-    void put(uint8_t id, const T &data) // Save data to Shadow RAM, mark dirty if changes occur
+    void put(uint8_t id, const T &data)
     {
         static_assert(std::is_trivially_copyable<T>::value, "Data type too complex!");
 
@@ -64,8 +73,13 @@ public:
         }
     }
 
+    /**
+     * @description Load data from Shadow RAM
+     * @param id Slot ID
+     * @param data Data
+     */
     template <typename T>
-    bool get(uint8_t id, T &data) // Load data from Shadow RAM
+    bool get(uint8_t id, T &data)
     {
         static_assert(std::is_trivially_copyable<T>::value, "Data type incompatible!");
 
@@ -86,14 +100,17 @@ public:
         return true;
     }
 
+    /**
+     * @description Set auto-commit interval
+     * Set how long to wait from dirty data until auto-commit (ms), default is 1000ms.
+     * If ms = 0, auto-commit is disabled.
+     * @param ms
+     */
+    void setAutoCommit(uint32_t ms) { _autoCommitMs = ms; }
     bool commit(uint32_t maxIntervalMs = 100, uint8_t maxWrites = 10);
     bool verify();
     bool wipe();
     void update();
-
-    // Set how long to wait from dirty data until auto-commit (ms).
-    // If ms = 0, auto-commit is disabled.
-    void setAutoCommit(uint32_t ms) { _autoCommitMs = ms; }
 
     bool isDirty() const { return _dirty; }
     bool isLocked() const { return _isLocked; }
@@ -141,8 +158,8 @@ public:
     /**
      * [setEncryption] Set the encryption key.
      * Call this before begin() if you want to use encryption.
-     *
      * @param key Encryption key
+     * @param len Key length
      */
     void setEncryption(const uint8_t *key, size_t len)
     {
@@ -178,7 +195,7 @@ private:
     uint8_t _sameDataCount = 0;
     uint32_t _lastCheckTime = 0;
     uint32_t _dirtyTimer = 0;
-    uint32_t _autoCommitMs = 0;
+    uint32_t _autoCommitMs = 1000;
 
     uint8_t _calculateChecksum(uint8_t *data, size_t len);
     SlotNode *_findSlot(uint8_t id);

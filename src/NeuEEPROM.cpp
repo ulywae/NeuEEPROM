@@ -1,4 +1,5 @@
 #include "NeuEEPROM.h"
+#include "NeuCipher.h"
 
 NeuEEPROM::NeuEEPROM() {}
 
@@ -191,7 +192,7 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
     // 1. & 2. CHECK REDUNDANCE & LOCK STATUS
     if (!_dirty)
     {
-        if (++_sameDataCount >= 5)
+        if (++_sameDataCount >= 10)
         {
             _isLocked = true;
             _reportError(ERR_FLASH_LOCKED);
@@ -339,6 +340,7 @@ bool NeuEEPROM::verify()
 /**
  * [wipe] Reset Shadow RAM to 0xFF & erase the physical files in Flash.
  * @return bool: True if the reset was successful with no residue.
+ * WARNING: This function will erase all data and reset the total write cycles.
  */
 bool NeuEEPROM::wipe()
 {
@@ -374,6 +376,7 @@ bool NeuEEPROM::wipe()
 
 /**
  * [update] The main engine for managing auto-commit and rate limiting.
+ * @note This function should be called in the loop() function.
  */
 void NeuEEPROM::update()
 {
