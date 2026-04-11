@@ -6,19 +6,20 @@ NeuEEPROM is designed to make persistent storage simple to use, while handling s
 
 ---
 
-## Features
+## Features (v2.0.0 "The Security Update")
 
-- Slot-based storage (no manual offset)
-- 4-byte aligned memory access
-- Safe commit (temp file + rename)
-- Auto commit engine (non-blocking)
-- Anti write-spam protection
-- Dirty state tracking
-- Event-Driven Error System
-- XOR Integrity Check
-- Data verification support
-- Easy wipe/reset system
-- Debug tools (`hexDump`, `debugSlots`)
+- **Smart Slot Management**: No more manual byte counting or memory overlap.
+- **Hardware Odometer**: Tracks total write cycles to monitor your Flash chip's lifespan.
+- **Flash Health Meter**: Get real-time health percentage of your hardware.
+- **Zero-Knowledge Encryption**: Integrated XOR cipher to secure data on the physical chip.
+- **Data Suitcase (Export/Import)**: Backup and restore settings via any Stream (Serial/WiFi/SD).
+- **Event-Driven Diagnostics**: Professional callback system for real-time error reporting.
+- **Anti-Spam Lockdown**: Military-grade protection against accidental infinite write loops.
+- **Atomic Swap Transaction**: Power-failure safe writes using `.tmp` and `rename` logic.
+- **Self-Healing**: Automatic CRC integrity check and auto-wipe for corrupted data.
+- **Shadow RAM Engine**: Lightning-fast `put`/`get` operations with dirty-state tracking.
+- **System Monitors**: Built-in Heap Usage and fragmentation trackers (ESP8266 specific).
+- **Master Clear Window**: 5-second safety period for total factory resets.
 
 ---
 
@@ -35,14 +36,26 @@ NeuEEPROM removes complexity from the user while enforcing safety and consistenc
 ### 1. Initialize
 
 ```cpp
-// Enable automatic formatting of the filesystem if mounting fails.
-// Useful for brand new chips or recovering from filesystem corruption.
-// Default "false" if not set.
-neuEEPROM.autoFormatting(true);
 
-// Initialize the library with a 512-byte Shadow RAM buffer.
-// This will mount the FS, cleanup junk, and load existing data from Flash.
-neuEEPROM.begin(512);
+#include <NeuEEPROM.h>
+
+void setup() {
+    // Optional: Set encryption key before begin
+  uint8_t key[] = {0x12, 0x34, 0x56};
+  neuEEPROM.setEncryption(key, sizeof(key));
+
+    // Enable automatic formatting of the filesystem if mounting fails.
+    // Useful for brand new chips or recovering from filesystem corruption.
+    // Default "false" if not set.
+    neuEEPROM.autoFormatting(true);
+
+  // Initialize with 512 bytes of Shadow RAM
+  neuEEPROM.begin(512);
+
+  // Register your data slot
+  neuEEPROM.registerSlot(1, sizeof(MySettings));
+}
+
 ```
 
 ---
@@ -201,6 +214,15 @@ Each slot is:
 
 ---
 
+## Monitoring Hardware Health
+
+```cpp
+Serial.printf("Flash Health: %.2f%%\n", neuEEPROM.getHealth());
+Serial.printf("Total Writes: %d cycles\n", neuEEPROM.getWriteCount());
+```
+
+---
+
 ## Why NeuEEPROM?
 
 Traditional EEPROM usage can lead to:
@@ -216,6 +238,13 @@ NeuEEPROM solves these with:
 - Write protection & rate limiting
 - Atomic commit system
 - Built-in integrity checks
+
+- **Hardware Protection**: Built-in Write-Spam protection and **Lockdown** mode to prevent killing your Flash chip from accidental infinite loops.
+- **Shadow RAM Speed**: Uses a fast RAM buffer for `get` and `put` operations. Write to Flash only when needed.
+- **Zero-Knowledge Encryption**: Integrated XOR cipher to keep your data encrypted on the chip but plain in RAM.
+- **Flash Odometer**: Tracks total write cycles and provides a **Health Meter** for your hardware.
+- **Atomic Swap**: Uses temporary files and CRC checks during writes to ensure power failures never corrupt your data.
+- **Portable Data**: Export and Import your entire storage as a `.bin` suitcase via any `Stream` (Serial, WiFi, SD Card).
 
 ---
 
