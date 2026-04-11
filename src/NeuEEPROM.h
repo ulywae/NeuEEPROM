@@ -1,35 +1,10 @@
-/**
- * ---------------------------------------------------------------------------------
- *  NeuEEPROM - High Performance Virtual EEPROM for ESP32/ESP8266
- * ---------------------------------------------------------------------------------
- *  Description:
- *  A lightweight, RAM-cached virtual EEPROM library built on top of LittleFS.
- *  Designed for speed, flash longevity, and data integrity.
- *
- *  Key Features:
- *  - Shadow RAM: Ultra-fast O(1) access (No Flash read on get/put).
- *  - Atomic Swap: Power-failure resilient writes using .tmp swap logic.
- *  - Flash Protection: Built-in rate limiter and anti-spam protection.
- *  - ID-Based: Memory-efficient storage using uint8_t IDs instead of string keys.
- *  - Integrity: Byte-by-byte XOR checksum for data validation.
- *
- *  Author: [Neufa/ulywae]
- *  Version: 1.2.0
- *  License: MIT
- *  Repository: https://github.com/ulywae/NeuEEPROM
- * ---------------------------------------------------------------------------------
- *  NOTE: This library is designed to be "Disciplined". 
- *  If you trigger the Flash Spam Protection, a hardware restart is required.
- * ---------------------------------------------------------------------------------
- */
-
-
 #ifndef NEU_EEPROM_H
 #define NEU_EEPROM_H
 
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <type_traits>
+#include "NeuCipher.h"
 
 class NeuEEPROM
 {
@@ -49,7 +24,8 @@ public:
         ERR_FLASH_SPAM,      // Spam indicate
         ERR_FS_MOUNT,        // LittleFS mount failed
         ERR_CRC_FAIL,        // CRC mismatch / file corrupted
-        ERR_ATOMIC_SWAP      // Atomic swap failed
+        ERR_ATOMIC_SWAP,     // Atomic swap failed
+        ERR_HEALTH_LOW,      // Health check
     };
 
     typedef void (*ErrorCallback)(uint8_t errorCode, uint8_t id);
@@ -123,6 +99,57 @@ public:
     bool isLocked() const { return _isLocked; }
     void hexDump(size_t bytesPerLine = 16);
     void debugSlots();
+    uint32_t getWriteCount() const { return _totalWriteCycles; }
+    float getHealth();
+
+    /**
+     * [getLibraryHeapUsage] Gets the total RAM (bytes) allocated by this library.
+     * Includes the main data buffer and slot metadata structures.
+     */
+    size_t getLibraryHeapUsage() const
+    {
+        size_t total = _size; // Main buffer (Shadow RAM)
+
+        // Calculate the memory used by each SlotNode (metadata)
+        SlotNode *current = _head;
+        while (current)
+        {
+            total += sizeof(SlotNode);
+            current = current->next;
+        }
+        return total;
+    }
+
+    /**
+     * [getSystemFreeHeap] Gets the remaining global RAM available on the ESP32/ESP8266.
+     */
+    uint32_t getSystemFreeHeap() const
+    {
+        return ESP.getFreeHeap();
+    }
+
+#if defined(ESP8266)
+    /**
+     * [getMaxBlock8266] ESP8266 specific to check RAM fragmentation.
+     */
+    uint32_t NeuEEPROM::getMaxBlock8266() const
+    {
+        return ESP.getMaxFreeBlockSize();
+    }
+#endif
+
+    /**
+     * [setEncryption] Set the encryption key.
+     * Call this before begin() if you want to use encryption.
+     *
+     * @param key Encryption key
+     */
+    void setEncryption(const uint8_t *key, size_t len)
+    {
+        _encKey = key;
+        _encKeyLen = len;
+    }
+    bool masterClear();
 
 private:
     struct SlotNode
@@ -143,6 +170,10 @@ private:
     bool _isLocked = false;
     bool _autoFormat = false;
 
+    const uint8_t *_encKey = nullptr;
+    size_t _encKeyLen = 0;
+    uint32_t _startTime = 0;
+
     uint8_t _writeCount = 0;
     uint8_t _sameDataCount = 0;
     uint32_t _lastCheckTime = 0;
@@ -160,6 +191,8 @@ private:
         if (_errorCallback)
             _errorCallback(code, id);
     }
+
+    uint32_t _totalWriteCycles = 0; // Total number of write cycles
 };
 
 #if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_EEPROM)

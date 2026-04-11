@@ -51,6 +51,8 @@ bool NeuEEPROM::begin(size_t size, const char *path)
 {
     _size = size;
     _path = path;
+    _startTime = millis();
+    _totalWriteCycles = 0;
 
     // 1. RAM Management: Prevent memory leaks
     if (_buffer)
@@ -93,10 +95,15 @@ bool NeuEEPROM::begin(size_t size, const char *path)
     if (LittleFS.exists(_path))
     {
         File f = LittleFS.open(_path, "r");
-        if (f && f.size() == _size + 1) // Validation size: Data + 1 byte Checksum
+        if (f && f.size() == _size + 4 + 1) // Validation size: Data + 4 bytes Header + 1 byte Checksum
         {
-            f.read(_buffer, _size);
-            uint8_t savedCrc = f.read();
+            f.read(_buffer, _size);                   // Baca data (masih terenkripsi)
+            f.read((uint8_t *)&_totalWriteCycles, 4); // Baca counter
+            uint8_t savedCrc = f.read();              // Baca CRC
+
+            // [BARU] Dekripsi data sebelum cek integritas
+            if (_encKey && _encKeyLen > 0)
+                NeuCipher::process(_buffer, _size, _encKey, _encKeyLen);
 
             // Check Integrity with Checksum
             if (savedCrc == _calculateChecksum(_buffer, _size))
@@ -116,6 +123,30 @@ bool NeuEEPROM::begin(size_t size, const char *path)
         wipe();
     }
     return true;
+}
+
+/**
+ * [masterClear] Master Clear: Erase all data & reset the total write cycles.
+ * @return bool: True if the master clear was successful.
+ * WARNING: This function will erase all data and reset the total write cycles.
+ * Can only be called within the first 5 seconds after startup.
+ */
+bool NeuEEPROM::masterClear()
+{
+    // Check if it has been more than 5 seconds (5000 ms)
+    if (millis() - _startTime > 5000)
+    {
+        Serial.println(F("\nMaster Clear rejected: Time limit has passed 5 seconds."));
+        return false;
+    }
+
+    Serial.println(F("\nMaster Clear approved: Deleting data..."));
+    _totalWriteCycles = 0;
+
+    if (LittleFS.exists(_path))
+        LittleFS.remove(_path);
+
+    return wipe();
 }
 
 /**
@@ -157,7 +188,7 @@ bool NeuEEPROM::registerSlot(uint8_t id, size_t size)
  */
 bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
 {
-    // 1. CHECK REDUNDANCE: If the data is the same as in Flash, skip the write to preserve flash life
+    // 1. & 2. CHECK REDUNDANCE & LOCK STATUS
     if (!_dirty)
     {
         if (++_sameDataCount >= 5)
@@ -167,15 +198,13 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
         }
         return true;
     }
-
-    // 2. CHECK LOCK STATUS: If it was previously locked
     if (_isLocked)
     {
         _reportError(ERR_FLASH_LOCKED);
         return false;
     }
 
-    // 3. RATE LIMITER LOGIC: Prevents fast write spam
+    // 3. RATE LIMITER LOGIC
     uint32_t now = millis();
     if (now - _lastCheckTime < maxIntervalMs)
     {
@@ -188,34 +217,62 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
     }
     else
     {
-        // Reset the write after each time window expires
         _writeCount = 1;
         _lastCheckTime = now;
     }
 
-    // 4. ATOMIC SWAP: Processes writes to a temporary file
+    // 4. PREPARE DATA & ENCRYPTION
+    uint8_t finalCrc = _calculateChecksum(_buffer, _size);
+    size_t expectedSize = _size + 4 + 1; // Total size to be written
+    size_t actualWritten = 0;
+
+    if (_encKey && _encKeyLen > 0)
+        NeuCipher::process(_buffer, _size, _encKey, _encKeyLen);
+
     char tempPath[64];
     snprintf(tempPath, sizeof(tempPath), "%s.tmp", _path);
 
     File f = LittleFS.open(tempPath, "w");
     if (!f)
     {
+        if (_encKey && _encKeyLen > 0)
+            NeuCipher::process(_buffer, _size, _encKey, _encKeyLen);
         _reportError(ERR_ATOMIC_SWAP);
         return false;
     }
 
-    f.write(_buffer, _size);
-    f.write(_calculateChecksum(_buffer, _size));
+    // Count the accumulated bytes actually written.
+    actualWritten += f.write(_buffer, _size);
+
+    _totalWriteCycles++;
+    actualWritten += f.write((uint8_t *)&_totalWriteCycles, 4);
+
+    if (_totalWriteCycles >= 90000)
+        _reportError(ERR_HEALTH_LOW, 0);
+
+    actualWritten += f.write(finalCrc);
     f.close();
 
-    // 5. SWAP FILE: Remove the old one and replace it with the new one
+    // REVERSE DECRYPTION
+    if (_encKey && _encKeyLen > 0)
+        NeuCipher::process(_buffer, _size, _encKey, _encKeyLen);
+
+    // [VALIDATION] Check if all bytes are written correctly
+    if (actualWritten != expectedSize)
+    {
+        LittleFS.remove(tempPath); // Delete corrupted/damaged files
+        _reportError(ERR_ATOMIC_SWAP);
+        return false;
+    }
+
+    // 5. SWAP FILE
     LittleFS.remove(_path);
     if (LittleFS.rename(tempPath, _path))
     {
-        _dirty = false;            // Reset dirty flag
-        _dirtyTimer = 0;           // Reset timer for auto-commit
-        _sameDataCount = 0;        // Reset redundant write counter
-        _lastCheckTime = millis(); // Update the last successful time
+        _dirty = false;
+        _dirtyTimer = 0;
+        _sameDataCount = 0;
+        _lastCheckTime = millis();
         return true;
     }
 
@@ -235,7 +292,7 @@ bool NeuEEPROM::verify()
     File f = LittleFS.open(_path, "r");
 
     // Check file validity
-    if (!f || f.size() != _size + 1)
+    if (!f || f.size() != _size + 4 + 1)
     {
         if (f)
             f.close();
@@ -253,6 +310,13 @@ bool NeuEEPROM::verify()
         size_t toRead = std::min((size_t)sizeof(temp), _size - bytesRead);
         f.read(temp, toRead);
 
+        if (_encKey && _encKeyLen > 0)
+        {
+            // We use bytesRead offset to sync with key rotation
+            for (size_t i = 0; i < toRead; i++)
+                temp[i] ^= _encKey[(bytesRead + i) % _encKeyLen];
+        }
+
         if (memcmp(temp, _buffer + bytesRead, toRead) != 0)
         {
             f.close();
@@ -262,6 +326,7 @@ bool NeuEEPROM::verify()
         bytesRead += toRead;
     }
 
+    f.seek(_size + 4); // Seek to CRC
     bool ok = (f.read() == _calculateChecksum(_buffer, _size));
     f.close();
 
@@ -277,14 +342,33 @@ bool NeuEEPROM::verify()
  */
 bool NeuEEPROM::wipe()
 {
+    // 1. Reset Shadow RAM
+    _totalWriteCycles = 0;
     if (_buffer)
         memset(_buffer, 0xFF, _size);
 
-    _dirty = true; // Mark for the next commit to write clean data
+    _dirty = false;
 
-    if (LittleFS.exists(_path))
-        return LittleFS.remove(_path);
+    // 2. Data + 4 byte Counter + 1 byte CRC (Create if not exists)
+    File f = LittleFS.open(_path, "w");
+    if (!f)
+    {
+        _reportError(ERR_FS_MOUNT);
+        return false;
+    }
 
+    // Write data 0xFF to flash
+    f.write(_buffer, _size);
+
+    // Write counter
+    uint32_t zeroCounter = 0;
+    f.write((uint8_t *)&zeroCounter, 4);
+
+    // Write CRC
+    uint8_t initialCrc = _calculateChecksum(_buffer, _size);
+    f.write(initialCrc);
+
+    f.close();
     return true;
 }
 
@@ -350,6 +434,23 @@ void NeuEEPROM::debugSlots()
         Serial.printf("ID %d -> Offset: %d, Size: %d\n", c->id, c->offset, c->size);
         c = c->next;
     }
+}
+
+/**
+ * [getHealth] Calculates the health of the flash chip based on the number of write cycles.
+ * @return float: 0.0 to 100.0
+ */
+float NeuEEPROM::getHealth()
+{
+    const uint32_t MAX_CYCLES = 100000; // Maximum number of write cycles
+
+    if (_totalWriteCycles >= MAX_CYCLES)
+        return 0.0f; // Flash chip is dead
+
+    // Calculate health
+    float health = 100.0f - (((float)_totalWriteCycles / MAX_CYCLES) * 100.0f);
+
+    return (health < 0) ? 0.0f : health;
 }
 
 #if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_EEPROM)

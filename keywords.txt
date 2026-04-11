@@ -20,3 +20,8 @@ isDirty	KEYWORD2
 isLocked	KEYWORD2
 hexDump	KEYWORD2
 debugSlots	KEYWORD2
+masterClear	KEYWORD2
+getLibraryHeapUsage	KEYWORD2
+getSystemFreeHeap	KEYWORD2
+getMaxBlock8266	KEYWORD2
+setEncryption	KEYWORD2
