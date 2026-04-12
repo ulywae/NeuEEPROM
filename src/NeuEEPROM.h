@@ -32,7 +32,8 @@ public:
 
     /**
      * @description Enable/Disable autoformatting
-     * Enable autoformat if mount fails, set before begin if used
+     * Enable autoformat if mount fails, set before begin
+     * Default true
      * @param enable
      */
     void autoFormatting(bool enable) { _autoFormat = enable; }
