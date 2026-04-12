@@ -46,8 +46,8 @@ void setup() {
 
     // Enable automatic formatting of the filesystem if mounting fails.
     // Useful for brand new chips or recovering from filesystem corruption.
-    // Default "false" if not set.
-    neuEEPROM.autoFormatting(true);
+    // Default "true" if not set.
+    neuEEPROM.autoFormatting(false);
 
   // Initialize with 512 bytes of Shadow RAM
   neuEEPROM.begin(512);
