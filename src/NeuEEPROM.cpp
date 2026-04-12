@@ -64,7 +64,7 @@ bool NeuEEPROM::begin(size_t size, const char *path)
     if (!_buffer)
         return false;
 
-    memset(_buffer, 0xFF, _size);
+    memset(_buffer, 0, _size);
 
     // 2. Mount Filesystem (Cross-Platform ESP32/ESP8266)
 #if defined(ESP32)
@@ -347,7 +347,7 @@ bool NeuEEPROM::wipe()
     // 1. Reset Shadow RAM
     _totalWriteCycles = 0;
     if (_buffer)
-        memset(_buffer, 0xFF, _size);
+        memset(_buffer, 0, _size);
 
     _dirty = false;
 
