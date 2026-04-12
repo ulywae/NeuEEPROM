@@ -188,7 +188,7 @@ private:
     uint16_t _nextOffset = 0;
     bool _dirty = false;
     bool _isLocked = false;
-    bool _autoFormat = false;
+    bool _autoFormat = true;
 
     const uint8_t *_encKey = nullptr;
     size_t _encKeyLen = 0;
