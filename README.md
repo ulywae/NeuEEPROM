@@ -138,7 +138,7 @@ if (!neuEEPROM.verify()) {
 ## Wipe Storage
 
 ```cpp
-// Manually reset the Shadow RAM to 0xFF and erase the physical file from Flash.
+// Manually reset the Shadow RAM to 0x00 and erase the physical file from Flash.
 neuEEPROM.wipe();
 ```
 
