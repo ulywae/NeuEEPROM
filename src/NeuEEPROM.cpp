@@ -338,7 +338,7 @@ bool NeuEEPROM::verify()
 }
 
 /**
- * [wipe] Reset Shadow RAM to 0xFF & erase the physical files in Flash.
+ * [wipe] Reset Shadow RAM to 0x00 & erase the physical files in Flash.
  * @return bool: True if the reset was successful with no residue.
  * WARNING: This function will erase all data and reset the total write cycles.
  */
