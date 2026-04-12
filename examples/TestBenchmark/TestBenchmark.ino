@@ -12,7 +12,6 @@ void setup() {
 
     // 1. NeuEEPROM Preparation
     neuEEPROM.setEncryption(myKey, sizeof(myKey));
-    neuEEPROM.autoFormatting(true);
     neuEEPROM.begin(512);
     neuEEPROM.registerSlot(1, sizeof(int));
 
