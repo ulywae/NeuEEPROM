@@ -98,11 +98,11 @@ bool NeuEEPROM::begin(size_t size, const char *path)
         File f = LittleFS.open(_path, "r");
         if (f && f.size() == _size + 4 + 1) // Validation size: Data + 4 bytes Header + 1 byte Checksum
         {
-            f.read(_buffer, _size);                   // Baca data (masih terenkripsi)
-            f.read((uint8_t *)&_totalWriteCycles, 4); // Baca counter
-            uint8_t savedCrc = f.read();              // Baca CRC
+            f.read(_buffer, _size);                   // Read data (encrypt)
+            f.read((uint8_t *)&_totalWriteCycles, 4); // Read count
+            uint8_t savedCrc = f.read();              // Read CRC
 
-            // [BARU] Dekripsi data sebelum cek integritas
+            // Decrypt data if use
             if (_encKey && _encKeyLen > 0)
                 NeuCipher::process(_buffer, _size, _encKey, _encKeyLen);
 
