@@ -107,7 +107,7 @@ public:
      * @param ms
      */
     void setAutoCommit(uint32_t ms) { _autoCommitMs = ms; }
-    bool commit(uint32_t maxIntervalMs = 100, uint8_t maxWrites = 10);
+    bool commit(uint32_t maxIntervalMs = 1000, uint8_t maxWrites = 10);
     bool verify();
     bool wipe();
     void update();
