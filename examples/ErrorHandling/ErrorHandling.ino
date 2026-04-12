@@ -60,7 +60,6 @@ void setup() {
   neuEEPROM.onError(onSystemError);
 
   // Initialize library
-  neuEEPROM.autoFormatting(true);
   if (!neuEEPROM.begin(512)) {
     Serial.println(F("Critical: Hardware initialization failed!"));
     while(1);
