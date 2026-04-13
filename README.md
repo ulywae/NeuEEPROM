@@ -137,23 +137,23 @@ void setup() {
 ### Error Codes
 
 Code Meaning:
-ERR_NOT_REGISTERED Slot not registered before put/get
+· ERR_NOT_REGISTERED Slot not registered before put/get
 
-ERR_SIZE_MISMATCH Data size doesn't match registered slot
+· ERR_SIZE_MISMATCH Data size doesn't match registered slot
 
-ERR_BUFFER_OVERFLOW Shadow RAM full
+· ERR_BUFFER_OVERFLOW Shadow RAM full
 
-ERR_MALLOC_FAIL System heap exhausted (critical)
+· ERR_MALLOC_FAIL System heap exhausted (critical)
 
-ERR_FLASH_LOCKED Operations blocked due to redundant writes
+· ERR_FLASH_LOCKED Operations blocked due to redundant writes
 
-ERR_FLASH_SPAM Write spam detected — lockdown activated
+· ERR_FLASH_SPAM Write spam detected — lockdown activated
 
-ERR_CRC_FAIL Data integrity check failed
+· ERR_CRC_FAIL Data integrity check failed
 
-ERR_ATOMIC_SWAP File system error during safe-write
+· ERR_ATOMIC_SWAP File system error during safe-write
 
-ERR_HEALTH_LOW Flash nearing end of life (<10% health)
+· ERR_HEALTH_LOW Flash nearing end of life (<10% health)
 
 ---
 
@@ -185,32 +185,36 @@ Works with any Stream (Serial, WiFi, SD).
 
 NeuEEPROM includes a lightweight XOR cipher for basic obfuscation — prevents accidental reading of plaintext data (e.g., opening the .bin file in a text editor).
 
-NOT cryptographically secure. For sensitive data, replace NeuCipher with AES-128 or ChaCha20.
+NOT cryptographically secure. 
+For sensitive data, replace NeuCipher with AES-128 or ChaCha20.
 
 ---
 
 ## Why NeuEEPROM?
 
 Problem Solution:
-Manual offset calculations Smart Slot Management
+· Manual offset calculations Smart Slot Management
 
-Flash wear from frequent writes Rate Limiting + Anti-Spam Lockdown
+· Flash wear from frequent writes Rate Limiting + Anti-Spam Lockdown
 
-Data corruption on power loss Atomic Swap Transaction
+· Data corruption on power loss Atomic Swap Transaction
 
-Silent data corruption Self-Healing CRC + Auto-wipe
+· Silent data corruption Self-Healing CRC + Auto-wipe
 
-Difficult debugging Hex Dump + Slot Map + Error Callbacks
+· Difficult debugging Hex Dump + Slot Map + Error Callbacks
 
-No flash lifespan visibility Health Meter + Write Odometer
+· No flash lifespan visibility Health Meter + Write Odometer
 
 ---
 
 ## Design Goals
 
 · Deterministic behavior
+
 · Minimal overhead
+
 · Hardware-friendly
+
 · Safe by default
 
 ---
@@ -218,7 +222,9 @@ No flash lifespan visibility Health Meter + Write Odometer
 ## Requirements
 
 · ESP32 or ESP8266 Arduino core
+
 · LittleFS enabled
+
 · Arduino framework or PlatformIO
 
 ---
@@ -228,7 +234,9 @@ No flash lifespan visibility Health Meter + Write Odometer
 Issues, PRs, and suggestions welcome — especially:
 
 · Alternative cipher implementations (AES, ChaCha20)
+
 · Wear leveling improvements
+
 · Platform expansion (RP2040, ESP32-S3)
 
 ---
