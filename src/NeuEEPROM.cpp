@@ -265,6 +265,42 @@ bool NeuEEPROM::removeSlot(uint8_t id)
     return false;
 }
 
+void NeuEEPROM::_mergeFreeList() {
+    if (!_freeHead) return;
+
+    // Sort free list by offset (bubble sort sederhana)
+    bool swapped;
+    do {
+        swapped = false;
+        FreeNode *curr = _freeHead;
+        while (curr && curr->next) {
+            if (curr->offset > curr->next->offset) {
+                uint16_t tmpOff = curr->offset;
+                uint16_t tmpSize = curr->size;
+                curr->offset = curr->next->offset;
+                curr->size = curr->next->size;
+                curr->next->offset = tmpOff;
+                curr->next->size = tmpSize;
+                swapped = true;
+            }
+            curr = curr->next;
+        }
+    } while (swapped);
+
+    // Merge adjacent
+    FreeNode *curr = _freeHead;
+    while (curr && curr->next) {
+        if (curr->offset + curr->size == curr->next->offset) {
+            curr->size += curr->next->size;
+            FreeNode *toDel = curr->next;
+            curr->next = toDel->next;
+            free(toDel);
+        } else {
+            curr = curr->next;
+        }
+    }
+}
+
 /**
  * [commit] ATOMIC SWAP: Write the temp file first then rename it to original (Safe Write).
  * @return bool: True if the commit was successful.
