@@ -3,13 +3,6 @@
 
 #include <Arduino.h>
 
-/**
- * WARNING: This is a simple XOR cipher for basic obfuscation, NOT cryptographically secure.
- * - Prevents accidental reading of plaintext data (e.g., opening .bin file in editor)
- * - Does NOT protect against determined adversaries with known-plaintext attacks
- * - For security-sensitive data, replace this class with AES-128 or ChaCha20
- */
-
 class NeuCipher
 {
 public:

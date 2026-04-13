@@ -50,9 +50,9 @@ NeuEEPROM::SlotNode *NeuEEPROM::_findSlot(uint8_t id)
  */
 bool NeuEEPROM::begin(size_t size, const char *path)
 {
-    if (size % 4 != 0)  // Auto-padding buffer size to 4-byte alignment
+    if (size % 4 != 0)
         size += (4 - (size % 4));
-    
+
     _size = size;
     _path = path;
     _startTime = millis();
@@ -163,16 +163,52 @@ bool NeuEEPROM::registerSlot(uint8_t id, size_t size)
         return false;
 
     uint16_t aligned = (size + 3) & ~3;
+
+    // Find empty space that is big enough
+    FreeNode *prev = nullptr;
+    FreeNode *curr = _freeHead;
+    while (curr)
+    {
+        if (aligned <= curr->size)
+        {
+            // Use the free space
+            SlotNode *newNode = (SlotNode *)malloc(sizeof(SlotNode));
+            if (!newNode)
+            {
+                _reportError(ERR_MALLOC_FAIL, id);
+                return false;
+            }
+
+            newNode->id = id;
+            newNode->offset = curr->offset;
+            newNode->size = (uint16_t)size;
+            newNode->next = _head;
+            _head = newNode;
+
+            // Remove the free space
+            if (prev)
+                prev->next = curr->next;
+            else
+                _freeHead = curr->next;
+            free(curr);
+
+            return true;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+
+    // No free space, create a new slot
     if (_nextOffset + aligned > _size)
     {
-        _reportError(ERR_BUFFER_OVERFLOW, id); // Buffer overflow
+        _reportError(ERR_BUFFER_OVERFLOW, id);
         return false;
     }
 
     SlotNode *newNode = (SlotNode *)malloc(sizeof(SlotNode));
     if (!newNode)
     {
-        _reportError(ERR_MALLOC_FAIL, id); // Memory allocation failed
+        _reportError(ERR_MALLOC_FAIL, id);
         return false;
     }
 
@@ -184,6 +220,49 @@ bool NeuEEPROM::registerSlot(uint8_t id, size_t size)
 
     _nextOffset += aligned;
     return true;
+}
+
+/**
+ * [removeSlot] Removes the slot with the specified ID, then adds its offset+size to the free list.
+ * @return bool: True if the slot was successfully removed.
+ */
+bool NeuEEPROM::removeSlot(uint8_t id)
+{
+    SlotNode *prev = nullptr;
+    SlotNode *curr = _head;
+
+    while (curr)
+    {
+        if (curr->id == id)
+        {
+            // Add to free list
+            FreeNode *f = (FreeNode *)malloc(sizeof(FreeNode));
+            if (!f)
+            {
+                _reportError(ERR_MALLOC_FAIL, id);
+                return false;
+            }
+            f->offset = curr->offset;
+            f->size = (curr->size + 3) & ~3; // align
+            f->next = _freeHead;
+            _freeHead = f;
+
+            // Remove from slot list
+            if (prev)
+                prev->next = curr->next;
+            else
+                _head = curr->next;
+            free(curr);
+
+            _dirty = true; // Mark dirty
+            return true;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+
+    _reportError(ERR_NOT_REGISTERED, id);
+    return false;
 }
 
 /**
@@ -253,6 +332,9 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
 
     if (_totalWriteCycles >= 90000)
         _reportError(ERR_HEALTH_LOW, 0);
+
+    if (_totalWriteCycles > 100000)
+        _totalWriteCycles = 100000;
 
     actualWritten += f.write(finalCrc);
     f.close();
@@ -407,21 +489,59 @@ void NeuEEPROM::hexDump(size_t bytesPerLine)
     for (size_t i = 0; i < _size; i += bytesPerLine)
     {
         Serial.printf("%04X: ", (int)i);
-        for (size_t j = 0; j < bytesPerLine; j++)
-        {
-            if (i + j < _size)
-                Serial.printf("%02X ", _buffer[i + j]);
-            else
-                Serial.print(F("   "));
-        }
-        Serial.print(F("| "));
+
+        // Hex
         for (size_t j = 0; j < bytesPerLine; j++)
         {
             if (i + j < _size)
             {
-                char c = _buffer[i + j];
-                // Only display readable characters (Printable ASCII)
-                Serial.print((c >= 32 && c <= 126) ? c : '.');
+                bool isFree = false;
+                FreeNode *f = _freeHead;
+                while (f)
+                {
+                    if ((i + j) >= f->offset && (i + j) < f->offset + f->size)
+                    {
+                        isFree = true;
+                        break;
+                    }
+                    f = f->next;
+                }
+
+                if (isFree)
+                    Serial.print(F("-- ")); // special symbol for free space
+                else
+                    Serial.printf("%02X ", _buffer[i + j]);
+            }
+            else
+                Serial.print(F("   "));
+        }
+
+        Serial.print(F("| "));
+
+        // ASCII
+        for (size_t j = 0; j < bytesPerLine; j++)
+        {
+            if (i + j < _size)
+            {
+                bool isFree = false;
+                FreeNode *f = _freeHead;
+                while (f)
+                {
+                    if ((i + j) >= f->offset && (i + j) < f->offset + f->size)
+                    {
+                        isFree = true;
+                        break;
+                    }
+                    f = f->next;
+                }
+
+                if (isFree)
+                    Serial.print('-'); // special symbol for free space
+                else
+                {
+                    char c = _buffer[i + j];
+                    Serial.print((c >= 32 && c <= 126) ? c : '.');
+                }
             }
         }
         Serial.println();
@@ -439,6 +559,17 @@ void NeuEEPROM::debugSlots()
     {
         Serial.printf("ID %d -> Offset: %d, Size: %d\n", c->id, c->offset, c->size);
         c = c->next;
+    }
+
+    Serial.println(F("=== FREE LIST ==="));
+    FreeNode *f = _freeHead;
+    if (!f)
+        Serial.println(F("(no free slots)"));
+
+    while (f)
+    {
+        Serial.printf("Free -> Offset: %d, Size: %d\n", f->offset, f->size);
+        f = f->next;
     }
 }
 

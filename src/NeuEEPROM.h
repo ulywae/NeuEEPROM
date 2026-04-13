@@ -38,7 +38,8 @@ public:
      */
     void autoFormatting(bool enable) { _autoFormat = enable; }
     bool begin(size_t size = 512, const char *path = "/neu_eeprom.bin"); // Initialize NeuEEPROM
-    bool registerSlot(uint8_t id, size_t size);                          // Register a slot with a unique ID and a specific size (Optional, for internal management)
+    bool registerSlot(uint8_t id, size_t size);                          // Register a slot with a unique ID and a specific size
+    bool removeSlot(uint8_t id);
 
     /**
      * @description Save data to Shadow RAM, mark dirty if changes occur
@@ -180,6 +181,15 @@ private:
         uint16_t size;
         SlotNode *next;
     };
+
+    struct FreeNode
+    {
+        uint16_t offset;
+        uint16_t size;
+        FreeNode *next;
+    };
+
+    FreeNode *_freeHead = nullptr;
 
     uint8_t *_buffer = nullptr;
     size_t _size = 0;
