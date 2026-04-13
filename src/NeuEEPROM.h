@@ -31,7 +31,7 @@ public:
     void onError(ErrorCallback cb) { _errorCallback = cb; }
 
     /**
-     * @description Enable/Disable autoformatting
+     * @brief Enable/Disable autoformatting
      * Enable autoformat if mount fails, set before begin
      * Default true
      * @param enable
@@ -43,7 +43,7 @@ public:
     void compactFreeList() { _mergeFreeList(); }
 
     /**
-     * @description Save data to Shadow RAM, mark dirty if changes occur
+     * @brief Save data to Shadow RAM, mark dirty if changes occur
      * @param id Slot ID
      * @param data Data
      */
@@ -77,7 +77,7 @@ public:
     }
 
     /**
-     * @description Load data from Shadow RAM
+     * @brief Load data from Shadow RAM
      * @param id Slot ID
      * @param data Data
      */
@@ -104,7 +104,7 @@ public:
     }
 
     /**
-     * @description Set auto-commit interval
+     * @brief Set auto-commit interval
      * Set how long to wait from dirty data until auto-commit (ms), default is 1000ms.
      * If ms = 0, auto-commit is disabled.
      * @param ms
@@ -123,7 +123,7 @@ public:
     float getHealth();
 
     /**
-     * [getLibraryHeapUsage] Gets the total RAM (bytes) allocated by this library.
+     * @brief Gets the total RAM (bytes) allocated by this library.
      * Includes the main data buffer and slot metadata structures.
      */
     size_t getLibraryHeapUsage() const
@@ -146,7 +146,7 @@ public:
     }
 
     /**
-     * [getSystemFreeHeap] Gets the remaining global RAM available on the ESP32/ESP8266.
+     * @brief Gets the remaining global RAM available on the ESP32/ESP8266.
      */
     uint32_t getSystemFreeHeap() const
     {
@@ -155,7 +155,7 @@ public:
 
 #if defined(ESP8266)
     /**
-     * [getMaxBlock8266] ESP8266 specific to check RAM fragmentation.
+     * @brief ESP8266 specific to check RAM fragmentation.
      */
     uint32_t getMaxBlock8266() const
     {
@@ -164,7 +164,7 @@ public:
 #endif
 
     /**
-     * [setEncryption] Set the encryption key.
+     * @brief Set the encryption key.
      * Call this before begin() if you want to use encryption.
      * @param key Encryption key
      * @param len Key length
