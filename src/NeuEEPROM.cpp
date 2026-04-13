@@ -17,9 +17,16 @@ NeuEEPROM::~NeuEEPROM()
 }
 
 /**
- * [_calculateChecksum] Byte-by-byte XOR logic for data integrity.
- * @return 1-byte checksum of all buffers.
- */
+  * @brief Calculates the checksum value for data integrity verification
+  *
+  * Performs a simple XOR operation across all bytes in the buffer.
+  * The result is used to validate whether the data is intact and
+  * has not been corrupted or modified.
+  *
+  * @param data Pointer to the data buffer
+  * @param len Length of the data in bytes
+  * @return 1-byte checksum result
+  */
 uint8_t NeuEEPROM::_calculateChecksum(uint8_t *data, size_t len)
 {
     uint8_t crc = 0;
@@ -29,9 +36,14 @@ uint8_t NeuEEPROM::_calculateChecksum(uint8_t *data, size_t len)
 }
 
 /**
- * [_findSlot] Searches for a slot by ID.
- * @return Pointer to the slot if found, otherwise nullptr.
- */
+  * @brief Searches for a slot in the linked list by its ID
+  *
+  * Traverses the slot list and looks for an entry matching the given ID.
+  * Used internally by get/put operations to locate the correct memory position.
+  *
+  * @param id Slot ID number to find
+  * @return Pointer to the SlotNode if found, nullptr if not exists
+  */
 NeuEEPROM::SlotNode *NeuEEPROM::_findSlot(uint8_t id)
 {
     SlotNode *current = _head;
@@ -45,9 +57,19 @@ NeuEEPROM::SlotNode *NeuEEPROM::_findSlot(uint8_t id)
 }
 
 /**
- * [begin] Initial setup: RAM allocation, Mount FS, & Validation of old data.
- * @return bool: True if RAM is ready & FS mounted successfully.
- */
+  * @brief Initializes the NeuEEPROM system and prepares all resources
+  *
+  * This function allocates the main Shadow RAM buffer, mounts the file system,
+  * and loads existing data from Flash. It automatically handles first-time
+  * initialization, file creation, and recovery from corrupted data.
+  *
+  * Memory size is automatically adjusted to 4-byte alignment for
+  * optimal hardware performance and safety.
+  *
+  * @param size Total storage size required (default: 512 bytes)
+  * @param path File path in LittleFS where data is stored (default: "/neu_eeprom.bin")
+  * @return True if system ready and healthy, false if initialization failed
+  */
 bool NeuEEPROM::begin(size_t size, const char *path)
 {
     if (size % 4 != 0)
@@ -130,11 +152,20 @@ bool NeuEEPROM::begin(size_t size, const char *path)
 }
 
 /**
- * [masterClear] Master Clear: Erase all data & reset the total write cycles.
- * @return bool: True if the master clear was successful.
- * WARNING: This function will erase all data and reset the total write cycles.
- * Can only be called within the first 5 seconds after startup.
- */
+  * @brief Permanently erases all data and resets the entire system state
+  *
+  * This function performs a complete factory reset by deleting the storage file
+  * and reinitializing the memory with clean blank data. It also resets the
+  * write cycle counter and health monitor to zero.
+  *
+  * @warning This operation is irreversible and will DELETE ALL DATA saved in Flash!
+  *
+  * @note For safety and security reasons, this function ONLY works if called
+  *       within the first 5 seconds after power-up or reboot. After this
+  *       time window, the operation will be automatically rejected.
+  *
+  * @return True if data was successfully wiped, false if timed out or failed
+  */
 bool NeuEEPROM::masterClear()
 {
     // Check if it has been more than 5 seconds (5000 ms)
@@ -154,9 +185,19 @@ bool NeuEEPROM::masterClear()
 }
 
 /**
- * [registerSlot] Register a slot for data storage.
- * @return bool: True if the slot was registered successfully.
- */
+  * @brief Registers a new data slot with unique ID and specified size
+  *
+  * Allocates a reserved memory area within the buffer to hold a specific data structure.
+  * The system searches the Free List and assigns the first suitable empty space.
+  * If no existing space fits, it will extend the allocation from the end of the pool.
+  *
+  * Memory allocation is automatically aligned to 4-byte boundary
+  * for optimal hardware performance and data alignment.
+  *
+  * @param id Unique identifier number for this slot (1..255)
+  * @param size Size of the data in bytes
+  * @return True if registration successful, false if out of memory or ID exists
+  */
 bool NeuEEPROM::registerSlot(uint8_t id, size_t size)
 {
     if (size == 0 || _findSlot(id))
@@ -223,9 +264,18 @@ bool NeuEEPROM::registerSlot(uint8_t id, size_t size)
 }
 
 /**
- * [removeSlot] Removes the slot with the specified ID, then adds its offset+size to the free list.
- * @return bool: True if the slot was successfully removed.
- */
+  * @brief Removes a registered slot and frees its memory space
+  *
+  * This function deletes the slot entry from the linked list and
+  * adds its occupied area back into the Free List pool.
+  * The memory space becomes available again for new slot allocations.
+  *
+  * After removal, it is recommended to call @ref compactFreeList()
+  * to merge adjacent empty areas for optimal memory usage.
+  *
+  * @param id Unique ID number of the slot to be removed
+  * @return True if slot removed successfully, false if slot not found
+  */
 bool NeuEEPROM::removeSlot(uint8_t id)
 {
     SlotNode *prev = nullptr;
@@ -265,6 +315,17 @@ bool NeuEEPROM::removeSlot(uint8_t id)
     return false;
 }
 
+/**
+* @brief Merges contiguous blocks of free memory into one large block
+*
+* This function performs two important steps:
+* 1. Sorts the list of free space by offset address
+* 2. Checks for and merges adjacent free blocks
+* into one larger contiguous area.
+*
+* This is to maintain efficient memory management, prevent fragmentation,
+* and maximize the available free space for new slot allocations.
+*/
 void NeuEEPROM::_mergeFreeList() {
     if (!_freeHead) return;
 
@@ -302,9 +363,22 @@ void NeuEEPROM::_mergeFreeList() {
 }
 
 /**
- * [commit] ATOMIC SWAP: Write the temp file first then rename it to original (Safe Write).
- * @return bool: True if the commit was successful.
- */
+  * @brief Saves changes from Shadow RAM to physical Flash permanently
+  *
+  * This function performs a safe and intelligent write operation using the
+  * Atomic Swap method. Data is first written to a temporary file (.tmp),
+  * validated, and then replaces the original file only if everything is correct.
+  *
+  * It also includes built-in protection mechanisms:
+  * - Skip writing if data has not changed (@ref Smart Write)
+  * - Rate limiting to prevent flash abuse
+  * - Automatic Lockdown if spam is detected
+  * - Health monitoring to track flash wear level
+  *
+  * @param maxIntervalMs Minimum time gap required between writes (default: 1000ms)
+  * @param maxWrites Maximum allowed write attempts within the interval (default: 10)
+  * @return True if commit successful, False if error or locked
+  */
 bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
 {
     // 1. & 2. CHECK REDUNDANCE & LOCK STATUS
@@ -403,9 +477,17 @@ bool NeuEEPROM::commit(uint32_t maxIntervalMs, uint8_t maxWrites)
 }
 
 /**
- * [verify] Compares the contents of Shadow RAM vs Physical Files in Flash.
- * @return bool: True if RAM and Flash are 100% in sync (Including Checksum).
- */
+  * @brief Checks if Shadow RAM data matches the physical data in Flash
+  *
+  * This function performs a byte-to-byte comparison between the data
+  * currently held in RAM and the data physically stored on the file system.
+  * It also validates the integrity using the Checksum/CRC value.
+  *
+  * If encryption is enabled, data will be automatically decoded
+  * during the comparison process.
+  *
+  * @return True if data is 100% identical and valid, false if mismatch or corrupt
+  */
 bool NeuEEPROM::verify()
 {
     if (!_buffer || !LittleFS.exists(_path))
@@ -459,10 +541,21 @@ bool NeuEEPROM::verify()
 }
 
 /**
- * [wipe] Reset Shadow RAM to 0x00 & erase the physical files in Flash.
- * @return bool: True if the reset was successful with no residue.
- * WARNING: This function will erase all data and reset the total write cycles.
- */
+  * @brief Resets all data to empty state and creates a fresh blank file
+  *
+  * This function clears the Shadow RAM buffer with zeros and
+  * writes a new clean file directly to Flash. The write cycle counter
+  * is reset, and the checksum is recalculated for the empty state.
+  *
+  * It effectively restores the storage to its initial factory condition
+  * without removing the slot configuration structure.
+  *
+  * @warning: THIS OPERATION WILL PERMANENTLY ERASE ALL DATA!
+  *          All saved values, settings, and history will be lost immediately.
+  *          Use with extreme caution!
+  *
+  * @return True if wipe operation successful, false if file system error
+  */
 bool NeuEEPROM::wipe()
 {
     // 1. Reset Shadow RAM
@@ -496,9 +589,17 @@ bool NeuEEPROM::wipe()
 }
 
 /**
- * [update] The main engine for managing auto-commit and rate limiting.
- * @note This function should be called in the loop() function.
- */
+  * @brief Main background task handler for automatic operations
+  *
+  * This function should be called regularly inside the loop() function.
+  * It handles the Auto-Commit logic by checking if there are pending
+  * changes and whether the configured delay time has passed.
+  *
+  * It also serves as the heartbeat for the rate limiter and
+  * protection systems to work correctly.
+  *
+  * @note Must be called periodically in loop() for auto-save to work
+  */
 void NeuEEPROM::update()
 {
     if (!_dirty || _autoCommitMs == 0 || _isLocked)
@@ -512,9 +613,20 @@ void NeuEEPROM::update()
 }
 
 /**
- * [hexDump] Prints the contents of the EEPROM in a hex format for debugging.
- * Pro-tip: Left line = Offset, Middle = Hex, Right = ASCII.
- */
+  * @brief Prints the complete memory contents in Hex and ASCII format
+  *
+  * Displays a visual representation of the Shadow RAM buffer.
+  * The output is divided into three columns:
+  *  - Left: Memory address offset
+  *  - Middle: Byte values in Hexadecimal
+  *  - Right: Human-readable ASCII characters
+  *
+  * Free memory areas are specially marked as "--" for easy identification.
+  * This is extremely useful for debugging, reverse engineering,
+  * or checking raw data integrity.
+  *
+  * @param bytesPerLine Number of bytes to display per row (default: 16)
+  */
 void NeuEEPROM::hexDump(size_t bytesPerLine)
 {
     if (!_buffer)
@@ -585,8 +697,17 @@ void NeuEEPROM::hexDump(size_t bytesPerLine)
 }
 
 /**
- * [debugSlots] Prints the slot map for debugging purposes.
- */
+  * @brief Displays the complete memory allocation map for debugging
+  *
+  * Prints the list of all registered slots showing their IDs,
+  * memory offsets, and sizes. It also displays the Free List
+  * showing which areas are currently empty and available.
+  *
+  * This is extremely helpful to visualize how memory is fragmented,
+  * check alignment, and verify the internal structure of the storage.
+  *
+  * Output is printed directly to the Serial Monitor.
+  */
 void NeuEEPROM::debugSlots()
 {
     Serial.println(F("=== SLOT MAP ==="));
@@ -610,9 +731,17 @@ void NeuEEPROM::debugSlots()
 }
 
 /**
- * [getHealth] Calculates the health of the flash chip based on the number of write cycles.
- * @return float: 0.0 to 100.0
- */
+  * @brief Gets the remaining lifespan percentage of the Flash memory
+  *
+  * Calculates the health status based on how many times the data
+  * has been written since the first use. Flash memory has a limited
+  * number of write cycles (~100,000 times).
+  *
+  * The value ranges from 100.0% (brand new / fresh) down to 0.0%
+  * when the maximum limit is reached.
+  *
+  * @return Health percentage from 0.0% to 100.0%
+  */
 float NeuEEPROM::getHealth()
 {
     const uint32_t MAX_CYCLES = 100000; // Maximum number of write cycles
@@ -627,9 +756,16 @@ float NeuEEPROM::getHealth()
 }
 
 /**
- * [exportData] Exports the entire binary file to a Stream (Serial, File, WiFiClient).
- * This includes Data + Odometer + CRC.
- */
+  * @brief Exports the entire storage file as raw binary data
+  *
+  * Streams the complete physical file content (including data,
+  * write counter, and checksum) to any output Stream object.
+  *
+  * This can be used to create a full backup, transfer settings
+  * to another device, or save the image via Serial/Network.
+  *
+  * @param dest Destination stream (Serial, File, Client, etc.)
+  */
 void NeuEEPROM::exportData(Stream &dest)
 {
     if (!LittleFS.exists(_path))
@@ -651,7 +787,7 @@ void NeuEEPROM::exportData(Stream &dest)
 }
 
 /**
- * [importData] Receives binary data from a Stream and restores it to Flash.
+ * @brief Receives binary data from a Stream and restores it to Flash.
  * Re-initializes the library after a successful import.
  * Always ensure the same encryption key is set on the destination device before calling importData,
  * otherwise the data will fail the CRC check and be wiped for safety.
