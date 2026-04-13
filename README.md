@@ -193,6 +193,7 @@ For sensitive data, replace NeuCipher with AES-128 or ChaCha20.
 ## Why NeuEEPROM?
 
 Problem Solution:
+
 · Manual offset calculations Smart Slot Management
 
 · Flash wear from frequent writes Rate Limiting + Anti-Spam Lockdown
