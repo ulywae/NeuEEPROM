@@ -11,7 +11,8 @@
   <img src="https://img.shields.io/badge/PlatformIO-ready-orange.svg">
 </p>
 
-NeuEEPROM is designed to make persistent storage simple to use, while handling safety, alignment, and integrity internally — no more manual offset calculations or corrupted data.
+NeuEEPROM makes persistent storage simple — no manual offsets, no corruption fear, no flash spam.  
+It handles safety, alignment, and integrity internally.
 
 ---
 
@@ -32,7 +33,7 @@ NeuEEPROM is designed to make persistent storage simple to use, while handling s
 
 > **Simple outside, controlled inside.**
 
-NeuEEPROM removes complexity from the user while enforcing safety and consistency internally. You just `put` and `get` — the library handles alignment, wear protection, and power-fail safety.
+You just `put` and `get` — the library handles alignment, wear protection, and power-fail safety.
 
 ---
 
@@ -44,68 +45,56 @@ NeuEEPROM removes complexity from the user while enforcing safety and consistenc
 #include <NeuEEPROM.h>
 
 void setup() {
-    // Optional: Set basic obfuscation key before begin
+    // Optional: set obfuscation key before begin
     uint8_t key[] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0};
     neuEEPROM.setEncryption(key, sizeof(key));
 
-    // Disable auto-formatting if you want manual control (default = true)
-    neuEEPROM.autoFormatting(false);
-
-    // Initialize with 512 bytes of Shadow RAM
+    neuEEPROM.autoFormatting(false); // default = true
     neuEEPROM.begin(512);
-
-    // Register your data slot
     neuEEPROM.registerSlot(1, sizeof(MySettings));
 }
 ```
 
-### 2. Register Slots
+2. Register Slots
 
 ```cpp
-// Register a storage slot with a unique ID and your data structure size
-// Automatically calculates memory offset and ensures 4-byte alignment
 neuEEPROM.registerSlot(ID_CONFIG, sizeof(Config));
 ```
 
-### 3. Write Data
+3. Write Data
 
 ```cpp
-// Update Shadow RAM (only marks as "dirty" if data actually changed)
 neuEEPROM.put(ID_CONFIG, config);
-
-// Physically commit to Flash with safety checks
-neuEEPROM.commit();
+neuEEPROM.commit(); // flush to flash
 ```
 
-### 4. Read Data
+4. Read Data
 
 ```cpp
-// Retrieve from Shadow RAM into your variable
 Config config;
 if (neuEEPROM.get(ID_CONFIG, config)) {
-    // Data loaded successfully
+    // data loaded
 }
 ```
 
-### 5. Auto-Commit (Optional)
+5. Auto-Commit (Optional)
 
 ```cpp
 void loop() {
-    // Place this in loop() for auto-commit and rate-limiting
-    neuEEPROM.update();
+    neuEEPROM.update(); // call this in loop()
 }
 ```
 
 ---
 
-## Auto-Padding for Buffer Alignment
+Auto-Padding for Buffer Alignment
 
-NeuEEPROM automatically pads buffer size to the nearest 4‑byte boundary — no more alignment headaches.
+Automatically pads buffer size to the nearest 4‑byte boundary.
 
 What Size
-Struct size Raw size (e.g., 83 bytes)
-Buffer size Auto-padded to 4‑byte alignment (84 bytes)
-File size in flash Buffer + 4 bytes (write counter) + 1 byte (CRC) = 89 bytes
+Struct size 83 bytes
+Buffer size 84 bytes (auto‑padded)
+File size in flash 84 + 4 (counter) + 1 (CRC) = 89 bytes
 
 Example:
 
@@ -124,15 +113,13 @@ neuEEPROM.begin(sizeof(DeviceConfig));
 
 ---
 
-## Error Handling System
-
-Register a callback to catch issues in real-time:
+Error Handling System
 
 ```cpp
 void myErrorHandler(uint8_t code, uint8_t id) {
     switch(code) {
         case neuEEPROM.ERR_FLASH_SPAM:
-            digitalWrite(LED_BUILTIN, HIGH);  // Alert!
+            digitalWrite(LED_BUILTIN, HIGH);
             break;
         case neuEEPROM.ERR_CRC_FAIL:
             Serial.println("Data corrupted, auto-repair triggered");
@@ -145,122 +132,99 @@ void setup() {
 }
 ```
 
-## Error Codes
+Error Codes
 
-Code Meaning:
-
-* *ERR_NOT_REGISTERED: Slot not registered before put/get.
-* 
-* *ERR_SIZE_MISMATCH: Data size doesn't match registered slot.
-* 
-* *ERR_BUFFER_OVERFLOW: Shadow RAM full
-* *ERR_MALLOC_FAIL: System heap exhausted (critical).
-* 
-* *ERR_FLASH_LOCKED: Operations blocked due to redundant writes.
-* 
-* *ERR_FLASH_SPAM: Write spam detected — lockdown activated.
-* 
-* *ERR_CRC_FAIL: Data integrity check failed
-* *ERR_ATOMIC_SWAP: File system error during safe-write.
-* 
-* *ERR_HEALTH_LOW: Flash nearing end of life (<10% health).
+Code Meaning
+ERR_NOT_REGISTERED Slot not registered before put/get
+ERR_SIZE_MISMATCH Data size doesn't match registered slot
+ERR_BUFFER_OVERFLOW Shadow RAM full
+ERR_MALLOC_FAIL System heap exhausted (critical)
+ERR_FLASH_LOCKED Operations blocked due to redundant writes
+ERR_FLASH_SPAM Write spam detected — lockdown activated
+ERR_CRC_FAIL Data integrity check failed
+ERR_ATOMIC_SWAP File system error during safe-write
+ERR_HEALTH_LOW Flash nearing end of life (<10% health)
 
 ---
 
-## Debug Tools
+Debug Tools
 
 ```cpp
-// Professional hex dump with ASCII preview
-neuEEPROM.hexDump();
-
-// Visualize memory map: ID → Offset → Size
-neuEEPROM.debugSlots();
-
-// Monitor flash health
+neuEEPROM.hexDump();                         // hex + ASCII preview
+neuEEPROM.debugSlots();                      // slot map + free list
 Serial.printf("Health: %.2f%%\n", neuEEPROM.getHealth());
 Serial.printf("Write cycles: %d\n", neuEEPROM.getWriteCount());
-
-// RAM usage
 Serial.printf("Library heap: %d bytes\n", neuEEPROM.getLibraryHeapUsage());
 Serial.printf("Free heap: %d bytes\n", neuEEPROM.getSystemFreeHeap());
 ```
 
 ---
 
-## Data Suitcase (Export/Import)
-
-Backup and restore full storage via any Stream (Serial, WiFi, SD):
+Data Suitcase (Export/Import)
 
 ```cpp
-// Export to Serial (save to PC)
-neuEEPROM.exportData(Serial);
-
-// Import from Serial
-neuEEPROM.importData(Serial, 5000);
+neuEEPROM.exportData(Serial);        // backup to PC
+neuEEPROM.importData(Serial, 5000);  // restore from PC
 ```
 
----
-
-## Security Note
-
-NeuEEPROM includes a lightweight XOR cipher for basic obfuscation — it prevents accidental reading of plaintext data (e.g., opening the .bin file in a text editor).
-
-This is NOT cryptographically secure. For sensitive data (passwords, API keys, personal info), replace NeuCipher with AES-128 or ChaCha20.
+Works with any Stream (Serial, WiFi, SD).
 
 ---
 
-## Why NeuEEPROM?
+Security Note
 
-Problem NeuEEPROM Solution:
+NeuEEPROM includes a lightweight XOR cipher for basic obfuscation — prevents accidental reading of plaintext data (e.g., opening the .bin file in a text editor).
 
-* *Manual offset calculations Smart Slot Management.
-* 
-* *Flash wear from frequent writes Rate Limiting + Anti-Spam Lockdown.
-* 
-* *Data corruption on power loss Atomic Swap Transaction.
-* 
-* *Silent data corruption Self-Healing CRC + Auto-wipe.
-* 
-* *Difficult debugging Hex Dump + Slot Map + Error Callbacks.
-* 
-* *No flash lifespan visibility Health Meter + Write Odometer.
+NOT cryptographically secure. For sensitive data, replace NeuCipher with AES-128 or ChaCha20.
 
 ---
 
-## Design Goals
+Why NeuEEPROM?
 
-* *Deterministic behavior
-* *Minimal overhead
-* *Hardware-friendly
-* *Safe by default
-
----
-
-## Requirements
-
-* *ESP32 or ESP8266 Arduino core
-* *LittleFS enabled in board settings
-* *Arduino framework or PlatformIO
+Problem Solution
+Manual offset calculations Smart Slot Management
+Flash wear from frequent writes Rate Limiting + Anti-Spam Lockdown
+Data corruption on power loss Atomic Swap Transaction
+Silent data corruption Self-Healing CRC + Auto-wipe
+Difficult debugging Hex Dump + Slot Map + Error Callbacks
+No flash lifespan visibility Health Meter + Write Odometer
 
 ---
 
-## Contributing
+Design Goals
+
+· Deterministic behavior
+· Minimal overhead
+· Hardware-friendly
+· Safe by default
+
+---
+
+Requirements
+
+· ESP32 or ESP8266 Arduino core
+· LittleFS enabled
+· Arduino framework or PlatformIO
+
+---
+
+Contributing
 
 Issues, PRs, and suggestions welcome — especially:
 
-* *Alternative cipher implementations (AES, ChaCha20)
-* *Wear leveling improvements
-* *Platform expansion (RP2040, ESP32-S3)
+· Alternative cipher implementations (AES, ChaCha20)
+· Wear leveling improvements
+· Platform expansion (RP2040, ESP32-S3)
 
 ---
 
-## License
+License
 
-MIT License — Free for personal and commercial use.
+MIT — free for personal and commercial use.
 
 ---
 
-## Final Note
+Final Note
 
 NeuEEPROM is built from real-world problems — designed to prevent them from happening again.
 
@@ -268,5 +232,6 @@ If you've ever lost data to a power outage or killed a flash chip with an accide
 
 ---
 
-## Made with for ESP32 & ESP8266
+Made with for ESP32 & ESP8266
 
+```
