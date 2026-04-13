@@ -149,15 +149,21 @@ void setup() {
 
 Code Meaning:
 
-* *ERR_NOT_REGISTERED Slot not registered before put/get
-* *ERR_SIZE_MISMATCH Data size doesn't match registered slot
-* *ERR_BUFFER_OVERFLOW Shadow RAM full
-* *ERR_MALLOC_FAIL System heap exhausted (critical)
-* *ERR_FLASH_LOCKED Operations blocked due to redundant writes
-* *ERR_FLASH_SPAM Write spam detected — lockdown activated
-* *ERR_CRC_FAIL Data integrity check failed
-* *ERR_ATOMIC_SWAP File system error during safe-write
-* *ERR_HEALTH_LOW Flash nearing end of life (<10% health)
+* *ERR_NOT_REGISTERED: Slot not registered before put/get.
+* 
+* *ERR_SIZE_MISMATCH: Data size doesn't match registered slot.
+* 
+* *ERR_BUFFER_OVERFLOW: Shadow RAM full
+* *ERR_MALLOC_FAIL: System heap exhausted (critical).
+* 
+* *ERR_FLASH_LOCKED: Operations blocked due to redundant writes.
+* 
+* *ERR_FLASH_SPAM: Write spam detected — lockdown activated.
+* 
+* *ERR_CRC_FAIL: Data integrity check failed
+* *ERR_ATOMIC_SWAP: File system error during safe-write.
+* 
+* *ERR_HEALTH_LOW: Flash nearing end of life (<10% health).
 
 ---
 
@@ -206,12 +212,18 @@ This is NOT cryptographically secure. For sensitive data (passwords, API keys, p
 ## Why NeuEEPROM?
 
 Problem NeuEEPROM Solution:
-* *Manual offset calculations Smart Slot Management
-* *Flash wear from frequent writes Rate Limiting + Anti-Spam Lockdown
-* *Data corruption on power loss Atomic Swap Transaction
-* *Silent data corruption Self-Healing CRC + Auto-wipe
-* *Difficult debugging Hex Dump + Slot Map + Error Callbacks
-* *No flash lifespan visibility Health Meter + Write Odometer
+
+* *Manual offset calculations Smart Slot Management.
+* 
+* *Flash wear from frequent writes Rate Limiting + Anti-Spam Lockdown.
+* 
+* *Data corruption on power loss Atomic Swap Transaction.
+* 
+* *Silent data corruption Self-Healing CRC + Auto-wipe.
+* 
+* *Difficult debugging Hex Dump + Slot Map + Error Callbacks.
+* 
+* *No flash lifespan visibility Health Meter + Write Odometer.
 
 ---
 
