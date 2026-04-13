@@ -43,9 +43,17 @@ public:
     void compactFreeList() { _mergeFreeList(); }
 
     /**
-     * @brief Save data to Shadow RAM, mark dirty if changes occur
-     * @param id Slot ID
-     * @param data Data
+     * @brief Writes data to the specified slot in Shadow RAM
+     *
+     * Stores the input data into the internal buffer.
+     * It automatically compares the new value with the existing one.
+     *
+     * If the data is identical, nothing is done (@ref Smart Write)
+     * to prevent unnecessary wear and save flash cycles.
+     * If different, data is copied and the buffer is marked as DIRTY.
+     *
+     * @param id Target slot ID number
+     * @param data Source data variable
      */
     template <typename T>
     void put(uint8_t id, const T &data)
@@ -77,9 +85,17 @@ public:
     }
 
     /**
-     * @brief Load data from Shadow RAM
-     * @param id Slot ID
-     * @param data Data
+     * @brief Reads data from the specified slot in Shadow RAM
+     *
+     * Retrieves the stored value from the internal buffer and
+     * copies it into the provided variable reference.
+     *
+     * This operation reads directly from memory and does not
+     * touch or access the physical Flash.
+     *
+     * @param id Slot ID number to read
+     * @param data Destination variable reference
+     * @return True if read successful, false if error
      */
     template <typename T>
     bool get(uint8_t id, T &data)
@@ -115,6 +131,17 @@ public:
     bool wipe();
     void update();
 
+    /**
+     * @brief Checks if there are unsaved changes in the Shadow RAM
+     *
+     * Returns the status flag indicating whether the data currently
+     * in memory has been modified and differs from the data saved
+     * in Flash storage.
+     *
+     * If dirty, a call to @ref commit() is required to save the changes.
+     *
+     * @return True if data has changed and needs saving, false if up-to-date
+     */
     bool isDirty() const { return _dirty; }
     bool isLocked() const { return _isLocked; }
     void hexDump(size_t bytesPerLine = 16);
