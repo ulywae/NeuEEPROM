@@ -107,6 +107,30 @@ neuEEPROM.get(ID_CONFIG, config);
 
 ---
 
+## Auto-Padding for Buffer Alignment
+NeuEEPROM automatically pads the buffer size to the nearest 4‑byte boundary when calling `begin(sizeof(struct))`.  
+This ensures proper alignment and prevents validation errors when the struct size is not a multiple of 4.  
+
+- **Struct size**: raw size of your data structure.  
+- **Buffer size**: auto‑padded to 4‑byte alignment.  
+- **File size in flash**: buffer size + 4 bytes (write counter) + 1 byte (CRC).  
+
+**Example:**
+```cpp
+struct DeviceConfig {
+  char ssid[32];
+  char password[32];
+  char ip[16];
+  uint16_t port;
+  uint8_t deviceId;
+}; // sizeof(DeviceConfig) = 83
+
+neuEEPROM.begin(sizeof(DeviceConfig)); 
+// Buffer auto‑padded to 84 bytes, file size = 89 bytes
+```
+
+---
+
 ## Auto Commit (Optional)
 
 ```cpp
