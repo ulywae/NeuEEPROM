@@ -55,20 +55,20 @@ void setup() {
 }
 ```
 
-2. Register Slots
+### 2. Register Slots
 
 ```cpp
 neuEEPROM.registerSlot(ID_CONFIG, sizeof(Config));
 ```
 
-3. Write Data
+### 3. Write Data
 
 ```cpp
 neuEEPROM.put(ID_CONFIG, config);
 neuEEPROM.commit(); // flush to flash
 ```
 
-4. Read Data
+### 4. Read Data
 
 ```cpp
 Config config;
@@ -77,7 +77,7 @@ if (neuEEPROM.get(ID_CONFIG, config)) {
 }
 ```
 
-5. Auto-Commit (Optional)
+### 5. Auto-Commit (Optional)
 
 ```cpp
 void loop() {
@@ -87,7 +87,7 @@ void loop() {
 
 ---
 
-Auto-Padding for Buffer Alignment
+## Auto-Padding for Buffer Alignment
 
 Automatically pads buffer size to the nearest 4‑byte boundary.
 
@@ -113,7 +113,7 @@ neuEEPROM.begin(sizeof(DeviceConfig));
 
 ---
 
-Error Handling System
+## Error Handling System
 
 ```cpp
 void myErrorHandler(uint8_t code, uint8_t id) {
@@ -132,22 +132,32 @@ void setup() {
 }
 ```
 
-Error Codes
+---
 
-Code Meaning
+### Error Codes
+
+Code Meaning:
 ERR_NOT_REGISTERED Slot not registered before put/get
+
 ERR_SIZE_MISMATCH Data size doesn't match registered slot
+
 ERR_BUFFER_OVERFLOW Shadow RAM full
+
 ERR_MALLOC_FAIL System heap exhausted (critical)
+
 ERR_FLASH_LOCKED Operations blocked due to redundant writes
+
 ERR_FLASH_SPAM Write spam detected — lockdown activated
+
 ERR_CRC_FAIL Data integrity check failed
+
 ERR_ATOMIC_SWAP File system error during safe-write
+
 ERR_HEALTH_LOW Flash nearing end of life (<10% health)
 
 ---
 
-Debug Tools
+## Debug Tools
 
 ```cpp
 neuEEPROM.hexDump();                         // hex + ASCII preview
@@ -160,7 +170,7 @@ Serial.printf("Free heap: %d bytes\n", neuEEPROM.getSystemFreeHeap());
 
 ---
 
-Data Suitcase (Export/Import)
+## Data Suitcase (Export/Import)
 
 ```cpp
 neuEEPROM.exportData(Serial);        // backup to PC
@@ -171,7 +181,7 @@ Works with any Stream (Serial, WiFi, SD).
 
 ---
 
-Security Note
+## Security Note
 
 NeuEEPROM includes a lightweight XOR cipher for basic obfuscation — prevents accidental reading of plaintext data (e.g., opening the .bin file in a text editor).
 
@@ -179,19 +189,24 @@ NOT cryptographically secure. For sensitive data, replace NeuCipher with AES-128
 
 ---
 
-Why NeuEEPROM?
+## Why NeuEEPROM?
 
-Problem Solution
+Problem Solution:
 Manual offset calculations Smart Slot Management
+
 Flash wear from frequent writes Rate Limiting + Anti-Spam Lockdown
+
 Data corruption on power loss Atomic Swap Transaction
+
 Silent data corruption Self-Healing CRC + Auto-wipe
+
 Difficult debugging Hex Dump + Slot Map + Error Callbacks
+
 No flash lifespan visibility Health Meter + Write Odometer
 
 ---
 
-Design Goals
+## Design Goals
 
 · Deterministic behavior
 · Minimal overhead
@@ -200,7 +215,7 @@ Design Goals
 
 ---
 
-Requirements
+## Requirements
 
 · ESP32 or ESP8266 Arduino core
 · LittleFS enabled
@@ -208,7 +223,7 @@ Requirements
 
 ---
 
-Contributing
+## Contributing
 
 Issues, PRs, and suggestions welcome — especially:
 
@@ -218,13 +233,13 @@ Issues, PRs, and suggestions welcome — especially:
 
 ---
 
-License
+## License
 
 MIT — free for personal and commercial use.
 
 ---
 
-Final Note
+## Final Note
 
 NeuEEPROM is built from real-world problems — designed to prevent them from happening again.
 
@@ -232,6 +247,6 @@ If you've ever lost data to a power outage or killed a flash chip with an accide
 
 ---
 
-Made with for ESP32 & ESP8266
+### Made with for ESP32 & ESP8266
 
 ```
