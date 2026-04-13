@@ -1,3 +1,19 @@
+/**
+ * @file        NeuEEPROM.h
+ * @author      Ulywae
+ * @date        2026
+ * @brief       Advanced Non-Volatile Storage Manager for ESP Platform
+ *
+ * @details     Provides a sophisticated memory management system with
+ *              slot-based allocation, atomic safe-write, encryption,
+ *              and automatic health monitoring.
+ *              Designed for maximum data integrity and flash longevity.
+ *
+ * @copyright   Copyright (c) 2026 Ulywae.
+ *              Licensed under the MIT License.
+ *              Free to use, modify, and distribute without restrictions.
+ */
+
 #ifndef NEU_EEPROM_H
 #define NEU_EEPROM_H
 
@@ -150,9 +166,18 @@ public:
     float getHealth();
 
     /**
-     * @brief Gets the total RAM (bytes) allocated by this library.
-     * Includes the main data buffer and slot metadata structures.
-     */
+     * @brief Gets the total RAM memory allocated by the library
+     *
+     * Calculates and returns the sum of memory used for:
+     *  - The main data buffer storage
+     *  - Slot Node structures
+     *  - Free List Node structures
+     *
+     * This is useful to monitor memory consumption and
+     * check how much RAM is being occupied internally.
+     *
+     * @return Total memory size in bytes used by the library
+     */ 
     size_t getLibraryHeapUsage() const
     {
         size_t total = _size;
@@ -191,10 +216,19 @@ public:
 #endif
 
     /**
-     * @brief Set the encryption key.
-     * Call this before begin() if you want to use encryption.
-     * @param key Encryption key
-     * @param len Key length
+     * @brief Sets the secret key for data encryption
+     *
+     * Configures the cipher key that will be used to encode and decode
+     * the data before writing to Flash and after reading back.
+     *
+     * @note This function MUST be called BEFORE @ref begin()
+     *       otherwise the setting will not take effect.
+     *
+     * @warning Keep this key safe! If the key is lost or changed,
+     *          all previously saved data will become unreadable and corrupted.
+     *
+     * @param key Pointer to the key buffer/array
+     * @param len Length of the key in bytes
      */
     void setEncryption(const uint8_t *key, size_t len)
     {
