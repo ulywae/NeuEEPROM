@@ -137,6 +137,7 @@ void setup() {
 ### Error Codes
 
 Code Meaning:
+
 · ERR_NOT_REGISTERED Slot not registered before put/get
 
 · ERR_SIZE_MISMATCH Data size doesn't match registered slot
