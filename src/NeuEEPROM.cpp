@@ -50,6 +50,9 @@ NeuEEPROM::SlotNode *NeuEEPROM::_findSlot(uint8_t id)
  */
 bool NeuEEPROM::begin(size_t size, const char *path)
 {
+    if (size % 4 != 0)  // Auto-padding buffer size to 4-byte alignment
+        size += (4 - (size % 4));
+    
     _size = size;
     _path = path;
     _startTime = millis();
