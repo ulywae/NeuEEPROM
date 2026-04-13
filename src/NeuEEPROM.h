@@ -128,15 +128,20 @@ public:
      */
     size_t getLibraryHeapUsage() const
     {
-        size_t total = _size; // Main buffer (Shadow RAM)
+        size_t total = _size;
 
-        // Calculate the memory used by each SlotNode (metadata)
         SlotNode *current = _head;
-        while (current)
-        {
+        while (current) {
             total += sizeof(SlotNode);
             current = current->next;
         }
+
+        FreeNode *freeCurrent = _freeHead;
+        while (freeCurrent) {
+            total += sizeof(FreeNode);
+            freeCurrent = freeCurrent->next;
+        }
+
         return total;
     }
 
