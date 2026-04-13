@@ -6,7 +6,7 @@ NeuEEPROM is designed to make persistent storage simple to use, while handling s
 
 ---
 
-## Features (v2.0.2 "The Security Update")
+## Features
 
 - **Smart Slot Management**: No more manual byte counting or memory overlap.
 - **Hardware Odometer**: Tracks total write cycles to monitor your Flash chip's lifespan.
