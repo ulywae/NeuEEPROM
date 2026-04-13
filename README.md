@@ -113,6 +113,48 @@ neuEEPROM.begin(sizeof(DeviceConfig));
 
 ---
 
+## Advanced Features
+
+### Remove Slot
+
+Remove a registered slot and add its memory space to the free list.
+
+```cpp
+neuEEPROM.removeSlot(1); // slot ID 1 removed
+```
+
+· Memory becomes available for future registerSlot() calls
+
+· Free list uses first-fit strategy (no automatic compaction)
+
+---
+
+### Manual Free List Compaction
+
+After many removeSlot() calls, the free list may become fragmented.
+Call compactFreeList() to merge adjacent free nodes manually.
+
+```cpp
+neuEEPROM.compactFreeList(); // merge adjacent free spaces
+```
+
+Compaction is not automatic by design — because ESP CPU should not suffer.
+
+---
+
+### Slot & Free List Debug
+
+```cpp
+neuEEPROM.debugSlots();
+// Output:
+// === SLOT MAP ===
+// ID 2 -> Offset: 0, Size: 64
+// === FREE LIST ===
+// Free -> Offset: 64, Size: 32
+```
+
+---
+
 ## Error Handling System
 
 ```cpp
