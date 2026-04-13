@@ -40,6 +40,7 @@ public:
     bool begin(size_t size = 512, const char *path = "/neu_eeprom.bin"); // Initialize NeuEEPROM
     bool registerSlot(uint8_t id, size_t size);                          // Register a slot with a unique ID and a specific size
     bool removeSlot(uint8_t id);
+    void compactFreeList() { _mergeFreeList(); }
 
     /**
      * @description Save data to Shadow RAM, mark dirty if changes occur
@@ -190,6 +191,7 @@ private:
     };
 
     FreeNode *_freeHead = nullptr;
+    void _mergeFreeList();
 
     uint8_t *_buffer = nullptr;
     size_t _size = 0;
