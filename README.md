@@ -299,6 +299,12 @@ If you've ever lost data to a power outage or killed a flash chip with an accide
 
 ---
 
+**Note:**  
+This is primarily my personal toolkit. If you find it useful, use it however you like. If you don’t, that’s fine too — it still does its job for me.
+
+---
+---
+
 ### Made with for ESP32 & ESP8266
 
 ```
