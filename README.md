@@ -297,14 +297,12 @@ NeuEEPROM is built from real-world problems — designed to prevent them from ha
 
 If you've ever lost data to a power outage or killed a flash chip with an accidental infinite loop, this library is for you.
 
+
+### Made with for ESP32 & ESP8266
+
 ---
 
 **Note:**  
 This is primarily my personal toolkit. If you find it useful, use it however you like. If you don’t, that’s fine too — it still does its job for me.
 
 ---
----
-
-### Made with for ESP32 & ESP8266
-
-```
